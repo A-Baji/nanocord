@@ -7,11 +7,11 @@ from src.command_line import subparsers
 from src.command_line.subparsers import set_bot_key_help_str
 
 
-def setup_nanocord_commands(parser, is_parent=False):
+def setup_nanocord_commands(parser):
     command = parser.add_subparsers(dest="command")
     export = command.add_parser("export", help="Export and prepare Discord chat data")
     export_subcommand = export.add_subparsers(dest="subcommand")
-    subparsers.setup_export_create(export_subcommand, is_parent)
+    subparsers.setup_export_create(export_subcommand)
     return command, export_subcommand
 
 
@@ -39,10 +39,10 @@ def read_nanocord_args(args, export_subcommand):
         )
 
 
-def set_bot_token(token: str, obj, is_parent=False):
+def set_bot_token(token: str, obj):
     if not token and not obj.get("DISCORD_BOT_TOKEN"):
         raise ValueError(
-            f"Your Discord bot token must either be passed in as an argument or set {set_bot_key_help_str(is_parent)}",
+            f"Your Discord bot token must either be provided as an argument or set {set_bot_key_help_str()}",
         )
     else:
         return token or obj.get("DISCORD_BOT_TOKEN")

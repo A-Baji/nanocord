@@ -1,8 +1,8 @@
-def set_bot_key_help_str(is_parent=False):
-    return f"{'in your config' if is_parent else 'as the DISCORD_BOT_TOKEN environment variable'}"
+def set_bot_key_help_str():
+    return "as the DISCORD_BOT_TOKEN environment variable"
 
 
-def setup_export_create(export_subcommand, is_parent=False):
+def setup_export_create(export_subcommand):
     export_create = export_subcommand.add_parser(
         "create",
         help="Download Discord channel logs, parse them into a dataset, and save the results locally",
@@ -19,7 +19,7 @@ def setup_export_create(export_subcommand, is_parent=False):
         "--discord-token",
         type=str,
         dest="discord_token",
-        help=f"The Discord token for your bot. Must either be passed in as an argument or set {set_bot_key_help_str(is_parent)}",
+        help=f"The Discord token for your bot. Must either be provided as an argument or set {set_bot_key_help_str()}",
     )
     export_create_required_named.add_argument(
         "-c",
