@@ -1,20 +1,23 @@
+from datetime import timedelta
 import json
 import os
-import pathlib
 from os import path
+import pathlib
 
 from dateutil import parser
-from datetime import timedelta
 
-from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH, DATASET_PATH
-from nanocord.thoughts import (
-    UserNotFoundError,
-    validate_thought,
-    cleanup_string,
-    build_thought,
-    add_to_dataset
-)
 from nanocord.discord_export import export_channel_logs
+from nanocord.logger import setup_logger
+from nanocord.paths import DATASET_PATH
+from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH
+from nanocord.thoughts import add_to_dataset
+from nanocord.thoughts import build_thought
+from nanocord.thoughts import cleanup_string
+from nanocord.thoughts import UserNotFoundError
+from nanocord.thoughts import validate_thought
+
+# Setup logger
+logger = setup_logger('nanocord.dataset', 'logs/dataset.log')
 
 
 def parse_logs(
@@ -86,8 +89,8 @@ def parse_logs(
                 add_to_dataset(thought, dataset, user)
 
     if path.getsize(dataset_file_path) == 0:
-        print(
-            "WARNING: The resulting dataset is empty. Please double check your parameters."
+        logger.warning(
+            "The resulting dataset is empty. Please double check your parameters."
         )
 
     return dataset_file_path
@@ -156,27 +159,27 @@ def create_export(
     full_dataset_path = DATASET_PATH / f"{channel_user}_data_set.jsonl"
 
     if not full_dataset_path.exists() and use_existing:
-        print("ERROR: No existing dataset could be found!")
+        logger.error("No existing dataset could be found!")
         return
 
     # Download logs
     if (not full_logs_path.exists() or redownload) and not use_existing:
-        print("INFO: Exporting chat logs using DiscordChatExporter...")
+        logger.info("Exporting chat logs using DiscordChatExporter...")
         try:
             export_channel_logs(channel_id, bot_token)
         except Exception as e:
-            print(f"ERROR: Failed to export chat logs: {e}")
+            logger.error(f"Failed to export chat logs: {e}")
             raise
     elif full_logs_path.exists() and not redownload and not use_existing:
-        print(
-            f"INFO: Chat logs detected locally at {full_logs_path}... Skipping download."
+        logger.info(
+            f"Chat logs detected locally at {full_logs_path}... Skipping download."
         )
 
     # Parse logs
     if use_existing:
-        print("INFO: Using existing dataset... Skipping download and parsing.")
+        logger.info("Using existing dataset... Skipping download and parsing.")
     else:
-        print("INFO: Parsing chat logs into a dataset...")
+        logger.info("Parsing chat logs into a dataset...")
         try:
             parse_logs(
                 full_logs_path,
@@ -187,11 +190,11 @@ def create_export(
                 thought_min,
             )
         except UserNotFoundError as e:
-            print(f"ERROR: {e}")
+            logger.error(f"{e}")
             return
         get_lines(full_dataset_path, max_entry_count, offset, distributed, reverse)
         if not clean:
-            print(f"INFO: Dataset saved to {full_dataset_path}")
+            logger.info(f"Dataset saved to {full_dataset_path}")
 
     # Clean up generated files
     if clean and not use_existing:

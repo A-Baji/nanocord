@@ -5,7 +5,11 @@ import shutil
 import subprocess
 import sys
 
+from nanocord.logger import setup_logger
 from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH
+
+# Setup logger
+logger = setup_logger('nanocord.discord_export', 'logs/discord_export.log')
 
 DEFAULT_DCE_PATH_ENV_VAR = "DISCORD_CHAT_EXPORTER_PATH"
 
@@ -51,8 +55,8 @@ def resolve_discord_chat_exporter_path(prompt_for_path=False):
             return candidate
 
     if prompt_for_path and hasattr(sys, "stdin") and sys.stdin.isatty():
-        print(
-            "INFO: DiscordChatExporter is a required prerequisite. Install it from https://github.com/Tyrrrz/DiscordChatExporter/releases and enter the full path to the executable."
+        logger.info(
+            "DiscordChatExporter is a required prerequisite. Install it from https://github.com/Tyrrrz/DiscordChatExporter/releases and enter the full path to the executable."
         )
         raw_path = input("DiscordChatExporter executable path: ").strip()
         if raw_path:
@@ -78,12 +82,12 @@ def export_channel_logs(channel_id: str, bot_token: str = None):
     Returns:
         pathlib.Path: Path to the exported log file
     """
-    print("INFO: Exporting chat logs using DiscordChatExporter...")
-    print(
-        "INFO: This may take a few minutes to hours depending on the message count of the channel"
+    logger.info("Exporting chat logs using DiscordChatExporter...")
+    logger.info(
+        "This may take a few minutes to hours depending on the message count of the channel"
     )
-    print("INFO: Progress will NOT be saved if cancelled")
-    print(
+    logger.info("Progress will NOT be saved if cancelled")
+    logger.info(
         "--------------------------DiscordChatExporter---------------------------"
     )
 
@@ -92,7 +96,7 @@ def export_channel_logs(channel_id: str, bot_token: str = None):
             prompt_for_path=True
         )
     except FileNotFoundError as exc:
-        print(f"ERROR: {exc}")
+        logger.error(f"{exc}")
         raise RuntimeError(str(exc)) from exc
 
     # Generate the log filename
@@ -116,12 +120,12 @@ def export_channel_logs(channel_id: str, bot_token: str = None):
         ]
     )
 
-    print(
+    logger.info(
         "--------------------------DiscordChatExporter---------------------------"
     )
 
     # Move the file to our expected location
     shutil.move(log_filename, full_log_path)
-    print(f"INFO: Logs saved to {full_log_path}")
+    logger.info(f"Logs saved to {full_log_path}")
 
     return full_log_path

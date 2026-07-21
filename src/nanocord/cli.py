@@ -1,10 +1,15 @@
 import argparse
 import os
 
-from nanocord.version import __version__ as version
 from nanocord.dataset import create_export
 from nanocord.discord_export import export_channel_logs
-from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH, DATASET_PATH
+from nanocord.logger import setup_logger
+from nanocord.paths import DATASET_PATH
+from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH
+from nanocord.version import __version__ as version
+
+# Setup logger
+logger = setup_logger('nanocord.cli', 'logs/cli.log')
 
 
 def setup_nanocord_commands(parser):
@@ -185,27 +190,26 @@ def create_export(
     full_dataset_path = DATASET_PATH / f"{channel_user}_data_set.jsonl"
 
     if not full_dataset_path.exists() and use_existing:
-        print("ERROR: No existing dataset could be found!")
+        logger.error("No existing dataset could be found!")
         return
 
     # Download logs
     if (not full_logs_path.exists() or redownload) and not use_existing:
-        print("INFO: Exporting chat logs using DiscordChatExporter...")
         try:
             export_channel_logs(channel_id, bot_token)
         except Exception as e:
-            print(f"ERROR: Failed to export chat logs: {e}")
+            logger.error(f"Failed to export chat logs: {e}")
             raise
     elif full_logs_path.exists() and not redownload and not use_existing:
-        print(
-            f"INFO: Chat logs detected locally at {full_logs_path}... Skipping download."
+        logger.info(
+            f"Chat logs detected locally at {full_logs_path}... Skipping download."
         )
 
     # Parse logs
     if use_existing:
-        print("INFO: Using existing dataset... Skipping download and parsing.")
+        logger.info("Using existing dataset... Skipping download and parsing.")
     else:
-        print("INFO: Parsing chat logs into a dataset...")
+        logger.info("Parsing chat logs into a dataset...")
         try:
             parse_logs(
                 full_logs_path,
@@ -216,11 +220,11 @@ def create_export(
                 thought_min,
             )
         except UserNotFoundError as e:
-            print(f"ERROR: {e}")
+            logger.error(f"{e}")
             return
         get_lines(full_dataset_path, max_entry_count, offset, distributed, reverse)
         if not clean:
-            print(f"INFO: Dataset saved to {full_dataset_path}")
+            logger.info(f"Dataset saved to {full_dataset_path}")
 
 def nanocord():
     parser = argparse.ArgumentParser(
