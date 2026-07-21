@@ -3,6 +3,7 @@ import os
 
 from nanocord.version import __version__ as version
 from nanocord.dataset import create_export
+from nanocord.discord_export import export_channel_logs
 from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH, DATASET_PATH
 
 
