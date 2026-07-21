@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.scripts]
-nanocord = "src.nanocord.cli:nanocord"
+nanocord = "nanocord.cli:nanocord"
 
 [project.optional-dependencies]
 dev = [

@@ -1,9 +1,9 @@
 import argparse
 import os
 
-from src.nanocord.version import __version__ as version
-from src.nanocord.dataset import create_export
-from src.nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH, DATASET_PATH
+from nanocord.version import __version__ as version
+from nanocord.dataset import create_export
+from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH, DATASET_PATH
 
 
 def setup_nanocord_commands(parser):

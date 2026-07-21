@@ -6,15 +6,15 @@ from os import path
 from dateutil import parser
 from datetime import timedelta
 
-from src.nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH, DATASET_PATH
-from src.nanocord.thoughts import (
+from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH, DATASET_PATH
+from nanocord.thoughts import (
     UserNotFoundError,
     validate_thought,
     cleanup_string,
     build_thought,
     add_to_dataset
 )
-from src.nanocord.discord_export import export_channel_logs
+from nanocord.discord_export import export_channel_logs
 
 
 def parse_logs(

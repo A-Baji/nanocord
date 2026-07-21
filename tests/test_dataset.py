@@ -3,8 +3,8 @@ from unittest.mock import patch, mock_open
 import json
 import pathlib
 
-from src.nanocord.dataset import parse_logs, get_lines
-from src.nanocord.thoughts import UserNotFoundError
+from nanocord.dataset import parse_logs, get_lines
+from nanocord.thoughts import UserNotFoundError
 
 
 def test_parse_logs_with_mock_data():

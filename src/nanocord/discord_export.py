@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import sys
 
-from src.nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH
+from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH
 
 DEFAULT_DCE_PATH_ENV_VAR = "DISCORD_CHAT_EXPORTER_PATH"
 
