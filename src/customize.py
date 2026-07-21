@@ -71,7 +71,7 @@ def resolve_discord_chat_exporter_path(prompt_for_path=False):
     )
 
 
-def create_model(
+def create_export(
     channel_id: str,
     user_id: str,
     bot_token: str = os.getenv("DISCORD_BOT_TOKEN"),
@@ -81,7 +81,6 @@ def create_model(
     max_entry_count=1000,
     offset=0,
     distributed=False,
-    base_model="none",
     reverse=False,
     clean=False,
     redownload=False,

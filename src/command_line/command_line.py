@@ -7,17 +7,17 @@ from src.command_line import subparsers
 from src.command_line.subparsers import set_bot_key_help_str
 
 
-def setup_modelizer_commands(parser, is_parent=False):
+def setup_nanocord_commands(parser, is_parent=False):
     command = parser.add_subparsers(dest="command")
-    model = command.add_parser("model", help="Export and prepare Discord chat data")
-    model_subcommand = model.add_subparsers(dest="subcommand")
-    subparsers.setup_model_create(model_subcommand, is_parent)
-    return command, model_subcommand
+    export = command.add_parser("export", help="Export and prepare Discord chat data")
+    export_subcommand = export.add_subparsers(dest="subcommand")
+    subparsers.setup_export_create(export_subcommand, is_parent)
+    return command, export_subcommand
 
 
-def read_modelizer_args(args, model_subcommand):
-    if args.command == "model" and args.subcommand == "create":
-        customize.create_model(
+def read_nanocord_args(args, export_subcommand):
+    if args.command == "export" and args.subcommand == "create":
+        customize.create_export(
             args.channel,
             args.user,
             args.discord_token,
@@ -34,7 +34,7 @@ def read_modelizer_args(args, model_subcommand):
         )
     else:
         raise argparse.ArgumentError(
-            model_subcommand,
+            export_subcommand,
             "Must choose the `create` subcommand",
         )
 
@@ -48,22 +48,22 @@ def set_bot_token(token: str, obj, is_parent=False):
         return token or obj.get("DISCORD_BOT_TOKEN")
 
 
-def discordai_modelizer():
+def nanocord():
     parser = argparse.ArgumentParser(
-        prog="discordai_modelizer", description="Discord chat export and dataset preparation CLI"
+        prog="nanocord", description="Discord chat export and dataset preparation CLI"
     )
     parser.add_argument(
-        "-V", "--version", action="version", version=f"discordai-modelizer {version}"
+        "-V", "--version", action="version", version=f"nanocord {version}"
     )
 
-    command, model_subcommand = setup_modelizer_commands(parser)
+    command, export_subcommand = setup_nanocord_commands(parser)
 
     args = parser.parse_args()
     if hasattr(args, "discord_token"):
         args.discord_token = set_bot_token(args.discord_token, os.environ)
 
-    read_modelizer_args(args, model_subcommand)
+    read_nanocord_args(args, export_subcommand)
 
 
 if __name__ == "__main__":
-    discordai_modelizer()
+    nanocord()
