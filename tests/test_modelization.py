@@ -1,9 +1,32 @@
+from json import load
+
 from openai import AuthenticationError
 from pytest import raises
-from json import load
+
 from discordai_modelizer import customize
+
 from . import expected_values
-from .conftest import FULL_LOGS_PATH, FULL_DATASET_PATH, CHANNEL_ID, USER
+from .conftest import CHANNEL_ID
+from .conftest import FULL_DATASET_PATH
+from .conftest import FULL_LOGS_PATH
+from .conftest import USER
+
+
+def test_resolve_discord_chat_exporter_path_prompts_for_path(monkeypatch, tmp_path):
+    fake_binary = tmp_path / "DiscordChatExporter.Cli.exe"
+    fake_binary.touch()
+
+    class FakeStdin:
+        def isatty(self):
+            return True
+
+    monkeypatch.delenv("DISCORD_CHAT_EXPORTER_PATH", raising=False)
+    monkeypatch.setattr(customize.sys, "stdin", FakeStdin())
+    monkeypatch.setattr("builtins.input", lambda _: str(fake_binary))
+
+    resolved_path = customize.resolve_discord_chat_exporter_path(prompt_for_path=True)
+
+    assert resolved_path == fake_binary
 
 
 def test_logs_download(default_file_output):

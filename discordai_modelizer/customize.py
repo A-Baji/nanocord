@@ -1,12 +1,18 @@
 import os
-import platform
-import subprocess
-import appdirs
-import shutil
 import pathlib
+import platform
+import shutil
+import subprocess
+import sys
 
+import appdirs
 from openai import OpenAI
-from discordai_modelizer.gen_dataset import parse_logs, get_lines, UserNotFoundError
+
+from discordai_modelizer.gen_dataset import get_lines
+from discordai_modelizer.gen_dataset import parse_logs
+from discordai_modelizer.gen_dataset import UserNotFoundError
+
+DEFAULT_DCE_PATH_ENV_VAR = "DISCORD_CHAT_EXPORTER_PATH"
 
 MODEL_MAP = {
     "davinci": "davinci-002",
@@ -14,21 +20,61 @@ MODEL_MAP = {
 }
 
 
-def get_dce_path_and_exe():
-    os_name = platform.system()
+def resolve_discord_chat_exporter_path(prompt_for_path=False):
+    configured_path = os.getenv(DEFAULT_DCE_PATH_ENV_VAR)
+    if configured_path:
+        candidate = pathlib.Path(configured_path).expanduser()
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return candidate
+        if candidate.exists():
+            return candidate
+        raise FileNotFoundError(
+            f"Configured DiscordChatExporter path does not exist or is not executable: {candidate}"
+        )
 
+    os_name = platform.system()
+    candidate_paths = []
     if os_name == "Linux":
-        return pathlib.Path(
-            "DiscordChatExporter.Cli.linux-x64", "DiscordChatExporter.Cli"
-        )
+        candidate_paths = [
+            pathlib.Path("/usr/bin/DiscordChatExporter.Cli"),
+            pathlib.Path("/usr/local/bin/DiscordChatExporter.Cli"),
+            pathlib.Path("DiscordChatExporter.Cli.linux-x64/DiscordChatExporter.Cli"),
+        ]
     elif os_name == "Darwin":
-        return pathlib.Path(
-            "DiscordChatExporter.Cli.osx-x64", "DiscordChatExporter.Cli"
-        )
+        candidate_paths = [
+            pathlib.Path("/Applications/DiscordChatExporter/DiscordChatExporter.Cli"),
+            pathlib.Path("DiscordChatExporter.Cli.osx-x64/DiscordChatExporter.Cli"),
+        ]
     elif os_name == "Windows":
-        return pathlib.Path(
-            "DiscordChatExporter.Cli.win-x64", "DiscordChatExporter.Cli.exe"
+        candidate_paths = [
+            pathlib.Path(r"C:\Program Files\DiscordChatExporter\DiscordChatExporter.Cli.exe"),
+            pathlib.Path(r"C:\Program Files (x86)\DiscordChatExporter\DiscordChatExporter.Cli.exe"),
+            pathlib.Path("DiscordChatExporter.Cli.win-x64/DiscordChatExporter.Cli.exe"),
+        ]
+    else:
+        raise RuntimeError(f"Unsupported platform for DiscordChatExporter: {os_name}")
+
+    for candidate in candidate_paths:
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return candidate
+        if candidate.exists():
+            return candidate
+
+    if prompt_for_path and hasattr(sys, "stdin") and sys.stdin.isatty():
+        print(
+            "INFO: DiscordChatExporter is a required prerequisite. Install it from https://github.com/Tyrrrz/DiscordChatExporter/releases and enter the full path to the executable."
         )
+        raw_path = input("DiscordChatExporter executable path: ").strip()
+        if raw_path:
+            candidate = pathlib.Path(raw_path).expanduser()
+            if candidate.is_file() and os.access(candidate, os.X_OK):
+                return candidate
+            if candidate.exists():
+                return candidate
+
+    raise FileNotFoundError(
+        "DiscordChatExporter was not found. Install it from https://github.com/Tyrrrz/DiscordChatExporter/releases and set DISCORD_CHAT_EXPORTER_PATH to the executable path."
+    )
 
 
 def create_model(
@@ -68,14 +114,17 @@ def create_model(
         print(
             "--------------------------DiscordChatExporter---------------------------"
         )
-        DiscordChatExporter = (
-            pathlib.Path(os.path.dirname(__file__))
-            / "DiscordChatExporter"
-            / get_dce_path_and_exe()
-        )
+        try:
+            DiscordChatExporter = resolve_discord_chat_exporter_path(
+                prompt_for_path=True
+            )
+        except FileNotFoundError as exc:
+            print(f"ERROR: {exc}")
+            raise RuntimeError(str(exc)) from exc
+
         subprocess.run(
             [
-                DiscordChatExporter,
+                str(DiscordChatExporter),
                 "export",
                 "-c",
                 channel_id,
