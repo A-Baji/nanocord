@@ -6,18 +6,12 @@ import subprocess
 import sys
 
 import appdirs
-from openai import OpenAI
 
 from src.gen_dataset import get_lines
 from src.gen_dataset import parse_logs
 from src.gen_dataset import UserNotFoundError
 
 DEFAULT_DCE_PATH_ENV_VAR = "DISCORD_CHAT_EXPORTER_PATH"
-
-MODEL_MAP = {
-    "davinci": "davinci-002",
-    "babbage": "babbage-002",
-}
 
 
 def resolve_discord_chat_exporter_path(prompt_for_path=False):
@@ -81,7 +75,6 @@ def create_model(
     channel_id: str,
     user_id: str,
     bot_token: str = os.getenv("DISCORD_BOT_TOKEN"),
-    openai_key: str = os.getenv("OPENAI_API_KEY"),
     thought_time=10,
     thought_max: int = None,
     thought_min=4,
@@ -94,7 +87,6 @@ def create_model(
     redownload=False,
     use_existing=False,
 ):
-    client = OpenAI(api_key=openai_key)
     channel_user = f"{user_id[:13]}_{channel_id[:4]}"
     files_path = pathlib.Path(appdirs.user_data_dir(appname="discordai"))
     full_logs_path = files_path / f"{channel_id}_logs.json"
@@ -153,7 +145,7 @@ def create_model(
     if use_existing:
         print("INFO: Using existing dataset... Skipping download and parsing.")
     else:
-        print("INFO: Parsing chat logs into an OpenAI compatible dataset...")
+        print("INFO: Parsing chat logs into a dataset...")
         try:
             parse_logs(
                 full_logs_path,
@@ -170,38 +162,6 @@ def create_model(
         if not clean:
             print(f"INFO: Dataset saved to {full_dataset_path}")
 
-    # Train customized OpenAI model
-    if base_model in ["davinci", "babbage"]:
-        print("INFO: Starting OpenAI fine-tune job...")
-        upload_response = client.files.create(
-            file=open(full_dataset_path, "rb"), purpose="fine-tune"
-        )
-        fine_tune = client.fine_tuning.jobs.create(
-            model=MODEL_MAP[base_model],
-            training_file=upload_response.id,
-            suffix=channel_user,
-        )
-        print(
-            "INFO: This may take a few minutes to hours depending on the size of the dataset and the selected base model"
-        )
-        print(f"INFO: Fine tune job id: {fine_tune.id}")
-        print(
-            "INFO: Use the `job info -j <job_id>` command to check the info of the job process"
-        )
-        print(
-            "INFO: Use the `job events -j <job_id>` command to view the fine-tuning events of the job process"
-        )
-        print(
-            "INFO: Use the `job cancel -j <job_id>` command to cancel the job process"
-        )
-        print(
-            "INFO: Or visit the OpenAI dashboard: https://platform.openai.com/finetune"
-        )
-    else:
-        print("INFO: No base model selected... Skipping training.")
-
     # Clean up generated files
     if clean and not use_existing:
         full_dataset_path.unlink()
-
-    client.close()
