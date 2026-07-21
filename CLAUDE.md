@@ -27,17 +27,19 @@ Start this first — the official export is slow, don't block on it.
 
 3. **Keep raw and processed data separate**, and never overwrite raw exports — you'll rework the preprocessing logic multiple times as Phase 3 evolves:
    ```
-   raw/
-       discord_official_export/
-       discordchat_export/
-   processed/
-       oracle.txt
-       adib.jsonl
+   data/
+       raw/
+           discordchat_export/
+       processed/
+           oracle.txt
+           adib.jsonl
    ```
 
 4. **Normalize both sources into one schema.** The official Discord export and DiscordChatExporter's output use different JSON structures. Write a small normalization step that maps both into the same intermediate format before any cleaning/grouping logic runs — otherwise Phase 3's context-pairing will need to special-case both formats forever.
 
 > ⚠️ Do not build or use a self-bot / user-token scraper. Automating your own user account is against [Discord's Terms of Service](https://discord.com/terms) and risks an account ban regardless of intent.
+
+> Note: This implementation only supports DiscordChatExporter-based scraping, as the project intentionally avoids the official personal data export due to its limitations for training LLMs.
 
 ---
 

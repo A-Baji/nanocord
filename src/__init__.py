@@ -1,3 +1,1 @@
-from .version import __version__
-
-__all__ = ["__version__"]
+# This file is intentionally left empty to maintain package structure

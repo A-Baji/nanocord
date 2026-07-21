@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nanocord"
+version = "0.0.1"
+description = "A tool for exporting and preparing Discord chat data for LLM training"
+readme = "README.md"
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "appdirs>=1.4.4",
+    "python-dateutil>=2.8.2",
+]
+
+[project.scripts]
+nanocord = "src.nanocord.cli:nanocord"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
