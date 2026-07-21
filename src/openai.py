@@ -1,7 +1,9 @@
+from datetime import datetime
+from datetime import timezone
 import os
 
-from openai import OpenAI, PermissionDeniedError
-from datetime import datetime, timezone
+from openai import OpenAI
+from openai import PermissionDeniedError
 
 
 def convert_timestamp(time: int):

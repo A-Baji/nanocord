@@ -1,11 +1,13 @@
-from appdirs import user_data_dir
-from json import load, dumps
 from datetime import timedelta
-from dateutil import parser
-from string import punctuation
+from json import dumps
+from json import load
 from os import path
-import re
 import pathlib
+import re
+from string import punctuation
+
+from appdirs import user_data_dir
+from dateutil import parser
 
 
 class UserNotFoundError(Exception):

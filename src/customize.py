@@ -8,9 +8,9 @@ import sys
 import appdirs
 from openai import OpenAI
 
-from discordai_modelizer.gen_dataset import get_lines
-from discordai_modelizer.gen_dataset import parse_logs
-from discordai_modelizer.gen_dataset import UserNotFoundError
+from src.gen_dataset import get_lines
+from src.gen_dataset import parse_logs
+from src.gen_dataset import UserNotFoundError
 
 DEFAULT_DCE_PATH_ENV_VAR = "DISCORD_CHAT_EXPORTER_PATH"
 

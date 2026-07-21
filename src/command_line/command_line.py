@@ -1,14 +1,13 @@
 import argparse
 import json
 import os
-from discordai_modelizer import __version__ as version
-from discordai_modelizer import customize
-from discordai_modelizer import openai as openai_wrapper
-from discordai_modelizer.command_line import subparsers
-from discordai_modelizer.command_line.subparsers import (
-    set_openai_help_str,
-    set_bot_key_help_str,
-)
+
+from src import __version__ as version
+from src import customize
+from src import openai as openai_wrapper
+from src.command_line import subparsers
+from src.command_line.subparsers import set_bot_key_help_str
+from src.command_line.subparsers import set_openai_help_str
 
 
 def setup_modelizer_commands(parser, is_parent=False):
