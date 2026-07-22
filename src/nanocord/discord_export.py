@@ -71,7 +71,7 @@ def resolve_discord_chat_exporter_path(prompt_for_path=False):
     )
 
 
-def export_channel_logs(channel_id: str, bot_token: str = None):
+def export_channel_logs(channel_id: str, bot_token: str):
     """
     Export Discord channel logs using DiscordChatExporter.
 

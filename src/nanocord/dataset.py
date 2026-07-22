@@ -134,7 +134,7 @@ def get_lines(file_name: str, N=1000, offset=0, distributed=False, reverse=False
 def create_export(
     channel_id: str,
     user_id: str,
-    bot_token: str = os.getenv("DISCORD_BOT_TOKEN"),
+    bot_token: str,
     thought_time=10,
     thought_max: int = None,
     thought_min=4,

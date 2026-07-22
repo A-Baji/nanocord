@@ -2,7 +2,7 @@ import logging
 import os
 
 
-def setup_logger(name, log_file, level=logging.INFO):
+def setup_logger(name, log_file, level=logging.WARNING):
     """Function to setup as many loggers as you want"""
 
     # Create logs directory if it doesn't exist
@@ -18,6 +18,16 @@ def setup_logger(name, log_file, level=logging.INFO):
     handler.setFormatter(formatter)
 
     logger = logging.getLogger(name)
+
+    # Respect LOG_LEVEL environment variable if set
+    log_level_env = os.getenv('LOG_LEVEL', '').upper()
+    if log_level_env:
+        try:
+            level = getattr(logging, log_level_env)
+        except AttributeError:
+            # If invalid level specified, fall back to WARNING
+            level = logging.WARNING
+
     logger.setLevel(level)
     logger.addHandler(handler)
 

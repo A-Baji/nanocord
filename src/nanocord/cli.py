@@ -237,9 +237,9 @@ def nanocord():
     command, export_subcommand = setup_nanocord_commands(parser)
 
     args = parser.parse_args()
-    if hasattr(args, "discord_token") and args.discord_token:
-        # Set the token in environment for downstream usage
-        os.environ["DISCORD_BOT_TOKEN"] = args.discord_token
+    if not hasattr(args, "discord_token") or not args.discord_token:
+        # Try to get the token from environment
+        args.discord_token = os.getenv("DISCORD_BOT_TOKEN")
 
     read_nanocord_args(args, export_subcommand)
 
