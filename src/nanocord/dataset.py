@@ -9,6 +9,7 @@ from nanocord.paths import DATASET_PATH
 from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH
 from nanocord.thoughts import add_to_dataset
 from nanocord.thoughts import build_thought
+from nanocord.thoughts import cleanup_string
 from nanocord.thoughts import UserNotFoundError
 from nanocord.thoughts import validate_thought
 
@@ -40,7 +41,7 @@ def parse_logs(
     """
 
     files_path = DATASET_PATH
-    dataset_file_path = files_path / f"{user[:13]}_{channel[:4]}_data_set.jsonl"
+    dataset_file_path = files_path / f"{user}_{channel}_data_set.jsonl"
 
     with open(file, "r", encoding="utf-8") as data_file:
         data = json.load(data_file)
@@ -61,6 +62,10 @@ def parse_logs(
             thought = build_thought("", messages[0])
             for i, msg in enumerate(messages[1::]):
                 if msg["content"]:
+                    # Clean up the message content before processing
+                    cleaned_content = cleanup_string(msg["content"])
+                    msg["content"] = cleaned_content
+
                     prev_timestamp = datetime.fromisoformat(messages[i]["timestamp"])
                     curr_timestamp = datetime.fromisoformat(msg["timestamp"])
                     differentiation = (curr_timestamp - prev_timestamp) / timedelta(
@@ -140,7 +145,7 @@ def create_export(
     This function coordinates downloading Discord logs, parsing them into a dataset,
     and applying various filtering operations.
     """
-    channel_user = f"{user_id[:13]}_{channel_id[:4]}"
+    channel_user = f"{user_id}_{channel_id}"
 
     # Get log file path
     full_logs_path = DISCORD_CHAT_EXPORTER_LOGS_PATH / f"{channel_id}_logs.json"
