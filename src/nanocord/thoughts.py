@@ -22,21 +22,9 @@ def validate_thought(thought: str, thought_min: int = 6, thought_max: int = None
 
 def cleanup_string(msg: str) -> str:
     """
-    Remove URLs and slurs from a string and,
+    Remove URLs from a string and,
         return the string
     """
-
-    def censor_hate(match):
-        word = match.group()
-        # Find all vowels and replace them along with the next two characters
-        censored_word = re.sub(
-            r"([aeiou]).{0,2}",
-            lambda m: "*" * len(m.group()),
-            word,
-            flags=re.IGNORECASE,
-        )
-        return censored_word
-
     url_pattern = re.compile(r"\bhttps?://\S+|\bftp://\S+|\bfile://\S+")
     msg = url_pattern.sub("", msg)
 
