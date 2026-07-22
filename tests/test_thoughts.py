@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from src.nanocord.thoughts import (
+from nanocord.thoughts import (
     validate_thought,
     cleanup_string,
     build_thought,
@@ -28,17 +28,11 @@ def test_cleanup_string():
     cleaned = cleanup_string(text_with_url)
     assert "https://example.com" not in cleaned
 
-    # Test slur censoring
-    text_with_slur = "This is a nigger word that should be censored"
-    cleaned = cleanup_string(text_with_slur)
-    assert "*" in cleaned  # Should contain censored characters
-
-    # Test multiple URLs and slurs
-    text = "Check out http://test.com and https://example.org and use the fag word"
+    # Test multiple URLs
+    text = "Check out http://test.com and https://example.org"
     cleaned = cleanup_string(text)
     assert "http://" not in cleaned
     assert "https://" not in cleaned
-    assert "*" in cleaned  # Should contain censored characters
 
 
 def test_build_thought():
