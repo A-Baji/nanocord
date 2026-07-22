@@ -11,32 +11,32 @@ logger = global_logger
 
 def setup_nanocord_commands(parser):
     command = parser.add_subparsers(dest="command")
-    export = command.add_parser("export", help="Export and prepare Discord chat data")
-    export_subcommand = export.add_subparsers(dest="subcommand")
-    setup_export_create(export_subcommand)
-    return command, export_subcommand
+    dataset = command.add_parser("dataset", help="Export and prepare Discord chat data")
+    dataset_subcommand = dataset.add_subparsers(dest="subcommand")
+    setup_dataset_create(dataset_subcommand)
+    return command, dataset_subcommand
 
 
-def setup_export_create(export_subcommand):
-    export_create = export_subcommand.add_parser(
+def setup_dataset_create(dataset_subcommand):
+    dataset_create = dataset_subcommand.add_parser(
         "create",
         help="Download Discord channel logs, parse them into a dataset, and save the results locally",
     )
-    export_create_required_named = export_create.add_argument_group(
+    dataset_create_required_named = dataset_create.add_argument_group(
         "required named arguments"
     )
-    export_create_optional_named = export_create.add_argument_group(
+    dataset_create_optional_named = dataset_create.add_argument_group(
         "optional named arguments"
     )
 
-    export_create_required_named.add_argument(
+    dataset_create_required_named.add_argument(
         "-d",
         "--discord-token",
         type=str,
         dest="discord_token",
         help="The Discord token for your bot. Must either be provided as an argument or set as the DISCORD_BOT_TOKEN environment variable",
     )
-    export_create_required_named.add_argument(
+    dataset_create_required_named.add_argument(
         "-c",
         "--channel",
         required=True,
@@ -44,7 +44,7 @@ def setup_export_create(export_subcommand):
         dest="channel",
         help="The ID of the Discord channel you want to use",
     )
-    export_create_required_named.add_argument(
+    dataset_create_required_named.add_argument(
         "-u",
         "--user",
         required=True,
@@ -53,7 +53,7 @@ def setup_export_create(export_subcommand):
         help="The unique username of the Discord user you want to use",
     )
 
-    export_create_optional_named.add_argument(
+    dataset_create_optional_named.add_argument(
         "--ttime",
         "--thought-time",
         type=int,
@@ -62,7 +62,7 @@ def setup_export_create(export_subcommand):
         dest="thought_time",
         help='The maximum amount of time in seconds to consider two individual messages to be part of the same "thought": DEFAULT=10',
     )
-    export_create_optional_named.add_argument(
+    dataset_create_optional_named.add_argument(
         "--tmax",
         "--thought-max",
         type=int,
@@ -71,7 +71,7 @@ def setup_export_create(export_subcommand):
         dest="thought_max",
         help="The maximum length in words of each thought: DEFAULT=None",
     )
-    export_create_optional_named.add_argument(
+    dataset_create_optional_named.add_argument(
         "--tmin",
         "--thought-min",
         type=int,
@@ -80,7 +80,7 @@ def setup_export_create(export_subcommand):
         dest="thought_min",
         help="The minimum length in words of each thought: DEFAULT=4",
     )
-    export_create_optional_named.add_argument(
+    dataset_create_optional_named.add_argument(
         "-m",
         "--max-entries",
         type=int,
@@ -89,7 +89,7 @@ def setup_export_create(export_subcommand):
         dest="max_entries",
         help="The max amount of entries (by lines) that may exist in the dataset: DEFAULT=1000",
     )
-    export_create_optional_named.add_argument(
+    dataset_create_optional_named.add_argument(
         "--os",
         "--offset",
         type=int,
@@ -98,45 +98,31 @@ def setup_export_create(export_subcommand):
         dest="offset",
         help="The offset by line index starting at 0 for where to start selecting lines for the dataset: DEFAULT=0",
     )
-    export_create_optional_named.add_argument(
+    dataset_create_optional_named.add_argument(
         "--distributed",
         action="store_true",
         required=False,
         dest="distributed",
         help="Select lines as an even distribution instead of sequentially",
     )
-    export_create_optional_named.add_argument(
+    dataset_create_optional_named.add_argument(
         "--reverse_lines",
         action="store_true",
         required=False,
         dest="reverse",
         help="Reverse the order in which to select lines for the dataset",
     )
-    export_create_optional_named.add_argument(
-        "--dirty",
-        action="store_false",
-        required=False,
-        dest="dirty",
-        help="Skip the clean up step for outputted files",
-    )
-    export_create_optional_named.add_argument(
+    dataset_create_optional_named.add_argument(
         "--redownload",
         action="store_true",
         required=False,
         dest="redownload",
         help="Redownload the Discord chat logs",
     )
-    export_create_optional_named.add_argument(
-        "--use_existing",
-        action="store_true",
-        required=False,
-        dest="use_existing",
-        help="Use an existing dataset that may have been manually revised",
-    )
 
 
-def read_nanocord_args(args, export_subcommand):
-    if args.command == "export" and args.subcommand == "create":
+def read_nanocord_args(args, dataset_subcommand):
+    if args.command == "dataset" and args.subcommand == "create":
         create_export(
             args.channel,
             args.user,
@@ -148,13 +134,11 @@ def read_nanocord_args(args, export_subcommand):
             offset=args.offset,
             distributed=args.distributed,
             reverse=args.reverse,
-            clean=args.dirty,
             redownload=args.redownload,
-            use_existing=args.use_existing,
         )
     else:
         raise argparse.ArgumentError(
-            export_subcommand,
+            dataset_subcommand,
             "Must choose the `create` subcommand",
         )
 

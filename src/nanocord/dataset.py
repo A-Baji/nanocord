@@ -132,9 +132,7 @@ def create_export(
     offset=0,
     distributed=False,
     reverse=False,
-    clean=False,
     redownload=False,
-    use_existing=False,
 ):
     """
     Main function to orchestrate the export and dataset creation process.
@@ -148,44 +146,32 @@ def create_export(
     full_logs_path = DISCORD_CHAT_EXPORTER_LOGS_PATH / f"{channel_id}_logs.json"
     full_dataset_path = DATASET_PATH / f"{channel_user}_data_set.jsonl"
 
-    if not full_dataset_path.exists() and use_existing:
-        logger.error("No existing dataset could be found!")
-        return
-
     # Download logs
-    if (not full_logs_path.exists() or redownload) and not use_existing:
+    if not full_logs_path.exists() or redownload:
         logger.info("Exporting chat logs using DiscordChatExporter...")
         try:
             export_channel_logs(channel_id, bot_token)
         except Exception as e:
             logger.error(f"Failed to export chat logs: {e}")
             raise
-    elif full_logs_path.exists() and not redownload and not use_existing:
+    elif full_logs_path.exists() and not redownload:
         logger.info(
             f"Chat logs detected locally at {full_logs_path}... Skipping download."
         )
 
     # Parse logs
-    if use_existing:
-        logger.info("Using existing dataset... Skipping download and parsing.")
-    else:
-        logger.info("Parsing chat logs into a dataset...")
-        try:
-            parse_logs(
-                full_logs_path,
-                channel_id,
-                user_id,
-                thought_time,
-                thought_max,
-                thought_min,
-            )
-        except UserNotFoundError as e:
-            logger.error(f"{e}")
-            return
-        get_lines(full_dataset_path, max_entry_count, offset, distributed, reverse)
-        if not clean:
-            logger.info(f"Dataset saved to {full_dataset_path}")
-
-    # Clean up generated files
-    if clean and not use_existing:
-        full_dataset_path.unlink()
+    logger.info("Parsing chat logs into a dataset...")
+    try:
+        parse_logs(
+            full_logs_path,
+            channel_id,
+            user_id,
+            thought_time,
+            thought_max,
+            thought_min,
+        )
+    except UserNotFoundError as e:
+        logger.error(f"{e}")
+        return
+    get_lines(full_dataset_path, max_entry_count, offset, distributed, reverse)
+    logger.info(f"Dataset saved to {full_dataset_path}")
