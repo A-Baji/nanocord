@@ -1,6 +1,14 @@
 # NanoCord
 
-## Prerequisites
+## Installation
+
+```bash
+pip install nanocord
+```
+
+## Usage
+
+### Prerequisites
 
 NanoCord uses DiscordChatExporter to download Discord channel exports before it can build a dataset. It is now treated as an external prerequisite rather than a bundled dependency.
 
@@ -12,3 +20,10 @@ Example:
 
 - PowerShell: $env:DISCORD_CHAT_EXPORTER_PATH = "C:\\Path\\To\\DiscordChatExporter.Cli.exe"
 - Bash: export DISCORD_CHAT_EXPORTER_PATH="/path/to/DiscordChatExporter.Cli"
+
+### Commands
+
+```bash
+# Create a dataset from Discord logs
+nanocord dataset create --channel-id <channel_id> --bot-token <bot_token>
+```

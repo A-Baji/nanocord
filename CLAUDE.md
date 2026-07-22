@@ -23,7 +23,6 @@ Start this first — the official export is slow, don't block on it.
 2. **Fork `discordAI-modelizer`** for server-channel scraping:
    - Reuse the bundled [DiscordChatExporter](https://github.com/Tyrrrz/DiscordChatExporter) + bot-token export step as-is — it's already ToS-compliant (bot account with channel access, not a self-bot/user-token scraper).
    - Bot setup: create an application in the [Discord Developer Portal](https://discord.com/developers/applications), invite it to servers you're in with `Read Message History`, enable the **Message Content** privileged intent (Bot page → Privileged Gateway Intents). Under 100 servers, no Discord review needed.
-   - Reuse `gen_dataset.py`'s "thought grouping" (merges your consecutive messages within a time window into one utterance), word-count filtering, URL stripping, and slur censoring — solid as-is for Phase 1.
 
 3. **Keep raw and processed data separate**, and never overwrite raw exports — you'll rework the preprocessing logic multiple times as Phase 3 evolves:
    ```

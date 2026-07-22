@@ -14,6 +14,11 @@ logger = global_logger
 DEFAULT_DCE_PATH_ENV_VAR = "DISCORD_CHAT_EXPORTER_PATH"
 
 
+class DiscordChatExporterError(Exception):
+    """Custom exception for DiscordChatExporter related errors."""
+    pass
+
+
 def resolve_discord_chat_exporter_path(prompt_for_path=False):
     configured_path = os.getenv(DEFAULT_DCE_PATH_ENV_VAR)
     if configured_path:
@@ -82,7 +87,6 @@ def export_channel_logs(channel_id: str, bot_token: str):
     Returns:
         pathlib.Path: Path to the exported log file
     """
-    logger.info("Exporting chat logs using DiscordChatExporter...")
     logger.info(
         "This may take a few minutes to hours depending on the message count of the channel"
     )
@@ -97,7 +101,7 @@ def export_channel_logs(channel_id: str, bot_token: str):
         )
     except FileNotFoundError as exc:
         logger.error(f"{exc}")
-        raise RuntimeError(str(exc)) from exc
+        raise DiscordChatExporterError(str(exc)) from exc
 
     # Generate the log filename
     log_filename = f"{channel_id}_logs.json"
@@ -123,6 +127,13 @@ def export_channel_logs(channel_id: str, bot_token: str):
     logger.info(
         "--------------------------DiscordChatExporter---------------------------"
     )
+
+    # Check if the file was created before trying to move it
+    if not os.path.exists(log_filename):
+        raise DiscordChatExporterError(
+            "The export process failed. The DiscordChatExporter did not complete successfully. "
+            "This may be due to authentication issues, network problems, or other environmental factors."
+        )
 
     # Move the file to our expected location
     shutil.move(log_filename, full_log_path)

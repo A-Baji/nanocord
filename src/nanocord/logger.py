@@ -1,8 +1,10 @@
 import logging
 import os
 
+from nanocord.paths import DATA_DIR
 
-def setup_logger(name, log_file, level=logging.WARNING):
+
+def setup_logger(name, log_file, level=logging.INFO):
     """Function to setup as many loggers as you want"""
 
     # Create logs directory if it doesn't exist
@@ -25,8 +27,8 @@ def setup_logger(name, log_file, level=logging.WARNING):
         try:
             level = getattr(logging, log_level_env)
         except AttributeError:
-            # If invalid level specified, fall back to WARNING
-            level = logging.WARNING
+            # If invalid level specified, fall back to INFO
+            level = logging.INFO
 
     logger.setLevel(level)
     logger.addHandler(handler)
