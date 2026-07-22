@@ -4,14 +4,14 @@ import json
 from os import path
 
 from nanocord import global_logger
-from nanocord.discord_export import export_channel_logs
+from nanocord.dataset.discord_export import export_channel_logs
+from nanocord.dataset.thoughts import add_to_dataset
+from nanocord.dataset.thoughts import build_thought
+from nanocord.dataset.thoughts import cleanup_string
+from nanocord.dataset.thoughts import UserNotFoundError
+from nanocord.dataset.thoughts import validate_thought
 from nanocord.paths import DATASET_PATH
 from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH
-from nanocord.thoughts import add_to_dataset
-from nanocord.thoughts import build_thought
-from nanocord.thoughts import cleanup_string
-from nanocord.thoughts import UserNotFoundError
-from nanocord.thoughts import validate_thought
 
 # Use the global logger
 logger = global_logger

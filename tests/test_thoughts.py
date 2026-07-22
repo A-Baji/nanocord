@@ -1,12 +1,12 @@
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
-from nanocord.thoughts import (
-    validate_thought,
-    cleanup_string,
-    build_thought,
-    UserNotFoundError
-)
+import pytest
+
+from nanocord.dataset.thoughts import build_thought
+from nanocord.dataset.thoughts import cleanup_string
+from nanocord.dataset.thoughts import UserNotFoundError
+from nanocord.dataset.thoughts import validate_thought
 
 
 def test_validate_thought():

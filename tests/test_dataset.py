@@ -1,10 +1,13 @@
-import pytest
-from unittest.mock import patch, mock_open
 import json
 import pathlib
+from unittest.mock import mock_open
+from unittest.mock import patch
 
-from nanocord.dataset import parse_logs, get_lines
-from nanocord.thoughts import UserNotFoundError
+import pytest
+
+from nanocord.dataset.dataset import get_lines
+from nanocord.dataset.dataset import parse_logs
+from nanocord.dataset.thoughts import UserNotFoundError
 
 
 def test_parse_logs_with_mock_data():
@@ -25,8 +28,8 @@ def test_parse_logs_with_mock_data():
     }
 
     # Create a temporary file for testing
-    import tempfile
     import os
+    import tempfile
 
     with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
         json.dump(mock_log_data, f)
@@ -91,8 +94,8 @@ def test_edge_cases():
         "messages": []
     }
 
-    import tempfile
     import os
+    import tempfile
 
     with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
         json.dump(mock_log_data, f)

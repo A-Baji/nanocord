@@ -1,8 +1,8 @@
 import argparse
 import os
 
-from nanocord.dataset import create_export
 from nanocord import global_logger
+from nanocord.dataset.dataset import create_export
 from nanocord.version import __version__ as version
 
 # Use the global logger
