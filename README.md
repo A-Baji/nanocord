@@ -25,5 +25,5 @@ Example:
 
 ```bash
 # Create a dataset from Discord logs
-nanocord dataset create --channel-id <channel_id> --bot-token <bot_token>
+nanocord dataset create -c <channel_id> -u <user_id> -d <discord_bot_token>
 ```
