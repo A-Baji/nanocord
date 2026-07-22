@@ -24,6 +24,7 @@ def parse_logs(
     thought_time=5,
     thought_max: int = None,
     thought_min=6,
+    format_type: str = "json",
 ):
     """
     Parse Discord chat logs and create a dataset of thoughts.
@@ -35,13 +36,17 @@ def parse_logs(
         thought_time (int): Maximum time in seconds between messages to consider part of same thought
         thought_max (int): Maximum word count for a thought
         thought_min (int): Minimum word count for a thought
+        format_type (str): Format for output dataset ("json" or "txt")
 
     Returns:
         pathlib.Path: Path to the created dataset file
     """
 
     files_path = DATASET_PATH
-    dataset_file_path = files_path / f"{user}_{channel}_data_set.jsonl"
+    if format_type == "txt":
+        dataset_file_path = files_path / f"{user}_{channel}_data_set.txt"
+    else:
+        dataset_file_path = files_path / f"{user}_{channel}_data_set.jsonl"
 
     with open(file, "r", encoding="utf-8") as data_file:
         data = json.load(data_file)
@@ -74,14 +79,14 @@ def parse_logs(
                     if differentiation > thought_time * 1000:
                         # Validate and add the completed thought to dataset
                         if validate_thought(thought, thought_min, thought_max):
-                            add_to_dataset(thought, dataset, user)
+                            add_to_dataset(thought, dataset, user, format_type)
                         thought = build_thought("", msg)
                     else:
                         thought = build_thought(thought, msg)
 
             # Add the final thought
             if validate_thought(thought, thought_min, thought_max):
-                add_to_dataset(thought, dataset, user)
+                add_to_dataset(thought, dataset, user, format_type)
 
     if path.getsize(dataset_file_path) == 0:
         logger.warning(
@@ -138,18 +143,36 @@ def create_export(
     distributed=False,
     reverse=False,
     redownload=False,
+    format_type: str = "txt",
 ):
     """
     Main function to orchestrate the export and dataset creation process.
 
     This function coordinates downloading Discord logs, parsing them into a dataset,
     and applying various filtering operations.
+
+    Args:
+        channel_id (str): The ID of the Discord channel
+        user_id (str): The unique username of the Discord user
+        bot_token (str): The Discord bot token
+        thought_time (int): Maximum time in seconds between messages to consider part of same thought
+        thought_max (int): Maximum word count for a thought
+        thought_min (int): Minimum word count for a thought
+        max_entry_count (int): Maximum number of entries in the dataset
+        offset (int): Offset by line index starting at 0 for where to start selecting lines
+        distributed (bool): Select lines as an even distribution instead of sequentially
+        reverse (bool): Reverse the order in which to select lines
+        redownload (bool): Redownload the Discord chat logs
+        format_type (str): Format for output dataset ("json" or "txt"): DEFAULT=txt
     """
     channel_user = f"{user_id}_{channel_id}"
 
     # Get log file path
     full_logs_path = DISCORD_CHAT_EXPORTER_LOGS_PATH / f"{channel_id}_logs.json"
-    full_dataset_path = DATASET_PATH / f"{channel_user}_data_set.jsonl"
+    if format_type == "txt":
+        full_dataset_path = DATASET_PATH / f"{channel_user}_data_set.txt"
+    else:
+        full_dataset_path = DATASET_PATH / f"{channel_user}_data_set.jsonl"
 
     # Download logs
     if not full_logs_path.exists() or redownload:
@@ -174,6 +197,7 @@ def create_export(
             thought_time,
             thought_max,
             thought_min,
+            format_type,
         )
     except UserNotFoundError as e:
         logger.error(f"{e}")

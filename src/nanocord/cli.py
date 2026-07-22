@@ -119,6 +119,14 @@ def setup_dataset_create(dataset_subcommand):
         dest="redownload",
         help="Redownload the Discord chat logs",
     )
+    dataset_create_optional_named.add_argument(
+        "--format",
+        type=str,
+        default="txt",
+        required=False,
+        dest="format_type",
+        help="The format for the output dataset (json or txt): DEFAULT=txt",
+    )
 
 
 def read_nanocord_args(args, dataset_subcommand):
@@ -135,6 +143,7 @@ def read_nanocord_args(args, dataset_subcommand):
             distributed=args.distributed,
             reverse=args.reverse,
             redownload=args.redownload,
+            format_type=args.format_type,
         )
     else:
         raise argparse.ArgumentError(
