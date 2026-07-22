@@ -2,14 +2,11 @@ import argparse
 import os
 
 from nanocord.dataset import create_export
-from nanocord.discord_export import export_channel_logs
-from nanocord.logger import setup_logger
-from nanocord.paths import DATASET_PATH
-from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH
+from nanocord import global_logger
 from nanocord.version import __version__ as version
 
-# Setup logger
-logger = setup_logger('nanocord.cli', 'logs/cli.log')
+# Use the global logger
+logger = global_logger
 
 
 def setup_nanocord_commands(parser):
@@ -160,71 +157,6 @@ def read_nanocord_args(args, export_subcommand):
             export_subcommand,
             "Must choose the `create` subcommand",
         )
-
-
-def create_export(
-    channel_id: str,
-    user_id: str,
-    bot_token: str = os.getenv("DISCORD_BOT_TOKEN"),
-    thought_time=10,
-    thought_max: int = None,
-    thought_min=4,
-    max_entry_count=1000,
-    offset=0,
-    distributed=False,
-    reverse=False,
-    clean=False,
-    redownload=False,
-    use_existing=False,
-):
-    """
-    Main function to orchestrate the export and dataset creation process.
-
-    This function coordinates downloading Discord logs, parsing them into a dataset,
-    and applying various filtering operations.
-    """
-    channel_user = f"{user_id[:13]}_{channel_id[:4]}"
-
-    # Get log file path
-    full_logs_path = DISCORD_CHAT_EXPORTER_LOGS_PATH / f"{channel_id}_logs.json"
-    full_dataset_path = DATASET_PATH / f"{channel_user}_data_set.jsonl"
-
-    if not full_dataset_path.exists() and use_existing:
-        logger.error("No existing dataset could be found!")
-        return
-
-    # Download logs
-    if (not full_logs_path.exists() or redownload) and not use_existing:
-        try:
-            export_channel_logs(channel_id, bot_token)
-        except Exception as e:
-            logger.error(f"Failed to export chat logs: {e}")
-            raise
-    elif full_logs_path.exists() and not redownload and not use_existing:
-        logger.info(
-            f"Chat logs detected locally at {full_logs_path}... Skipping download."
-        )
-
-    # Parse logs
-    if use_existing:
-        logger.info("Using existing dataset... Skipping download and parsing.")
-    else:
-        logger.info("Parsing chat logs into a dataset...")
-        try:
-            parse_logs(
-                full_logs_path,
-                channel_id,
-                user_id,
-                thought_time,
-                thought_max,
-                thought_min,
-            )
-        except UserNotFoundError as e:
-            logger.error(f"{e}")
-            return
-        get_lines(full_dataset_path, max_entry_count, offset, distributed, reverse)
-        if not clean:
-            logger.info(f"Dataset saved to {full_dataset_path}")
 
 def nanocord():
     parser = argparse.ArgumentParser(

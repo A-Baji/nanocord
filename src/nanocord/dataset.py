@@ -1,23 +1,19 @@
+from datetime import datetime
 from datetime import timedelta
 import json
-import os
 from os import path
-import pathlib
 
-from dateutil import parser
-
+from nanocord import global_logger
 from nanocord.discord_export import export_channel_logs
-from nanocord.logger import setup_logger
 from nanocord.paths import DATASET_PATH
 from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH
 from nanocord.thoughts import add_to_dataset
 from nanocord.thoughts import build_thought
-from nanocord.thoughts import cleanup_string
 from nanocord.thoughts import UserNotFoundError
 from nanocord.thoughts import validate_thought
 
-# Setup logger
-logger = setup_logger('nanocord.dataset', 'logs/dataset.log')
+# Use the global logger
+logger = global_logger
 
 
 def parse_logs(
@@ -44,7 +40,6 @@ def parse_logs(
     """
 
     files_path = DATASET_PATH
-    user_id = user.split("#")[1] if "#" in user else None
     dataset_file_path = files_path / f"{user[:13]}_{channel[:4]}_data_set.jsonl"
 
     with open(file, "r", encoding="utf-8") as data_file:
@@ -52,8 +47,7 @@ def parse_logs(
         messages = [
             msg
             for msg in data["messages"]
-            if msg["author"].get("name") == user
-            and (user_id is None or msg["author"].get("discriminator") == user_id)
+            if msg["author"].get("id") == user
         ]
         if not messages:
             raise UserNotFoundError(
@@ -63,16 +57,12 @@ def parse_logs(
         # Open dataset file for writing
         with open(dataset_file_path, "w", encoding="utf-8") as dataset:
             thought_max = 999999 if not thought_max else thought_max
-            if "#" in user:
-                username, user_id = user.split("#")
-            else:
-                username, user_id = user, None
 
             thought = build_thought("", messages[0])
             for i, msg in enumerate(messages[1::]):
                 if msg["content"]:
-                    prev_timestamp = parser.parse(messages[i]["timestamp"])
-                    curr_timestamp = parser.parse(msg["timestamp"])
+                    prev_timestamp = datetime.fromisoformat(messages[i]["timestamp"])
+                    curr_timestamp = datetime.fromisoformat(msg["timestamp"])
                     differentiation = (curr_timestamp - prev_timestamp) / timedelta(
                         milliseconds=1
                     )

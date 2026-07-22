@@ -5,11 +5,11 @@ import shutil
 import subprocess
 import sys
 
-from nanocord.logger import setup_logger
+from nanocord import global_logger
 from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH
 
-# Setup logger
-logger = setup_logger('nanocord.discord_export', 'logs/discord_export.log')
+# Use the global logger
+logger = global_logger
 
 DEFAULT_DCE_PATH_ENV_VAR = "DISCORD_CHAT_EXPORTER_PATH"
 

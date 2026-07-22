@@ -1,8 +1,5 @@
-from datetime import timedelta
 import re
 from string import punctuation
-
-from dateutil import parser
 
 
 class UserNotFoundError(Exception):
@@ -28,7 +25,6 @@ def cleanup_string(msg: str) -> str:
     Remove URLs and slurs from a string and,
         return the string
     """
-    hate_speech_words = ["nigg", "fag", "gay", "tard"]
 
     def censor_hate(match):
         word = match.group()
@@ -43,10 +39,6 @@ def cleanup_string(msg: str) -> str:
 
     url_pattern = re.compile(r"\bhttps?://\S+|\bftp://\S+|\bfile://\S+")
     msg = url_pattern.sub("", msg)
-
-    for word in hate_speech_words:
-        pattern = re.compile(rf"(\b{re.escape(word)}\w{{0,1}})", re.IGNORECASE)
-        msg = pattern.sub(censor_hate, msg)
 
     return msg
 
