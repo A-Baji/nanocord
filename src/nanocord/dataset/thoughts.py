@@ -55,21 +55,10 @@ def build_json(thought: str) -> str:
 
 import json
 
-def add_to_dataset(thought: str, dataset_file, user_id: str = None, format_type: str = "json"):
+def add_to_dataset(thought: str, dataset_file, user_id: str = None):
     """
-    Validate a thought, create a dataset entry, and then add it to the dataset
-
-    Args:
-        thought (str): The thought content to add
-        dataset_file: File object to write to
-        user_id (str): User ID for JSON format
-        format_type (str): Either "json" or "txt" for output format
+    Validate a thought, create a dataset JSON entry, and then add it to the dataset
     """
     # We'll validate in the calling function for better control
-    if format_type == "txt":
-        # For text format, just write the thought content on a single line
-        dataset_file.write(thought + "\n")
-    else:
-        # Default JSON format
-        entry = {"prompt": f"{user_id[:13]} says:", "completion": thought}
-        dataset_file.write(json.dumps(entry) + "\n")
+    entry = {"prompt": f"{user_id[:13]} says:", "completion": thought}
+    dataset_file.write(json.dumps(entry) + "\n")
