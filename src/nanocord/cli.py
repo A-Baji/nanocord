@@ -85,7 +85,7 @@ dataset:
   thought_time: 5
   thought_min: 6
   thought_max: null
-  max_entry_count: 1000
+  max_entries: 1000
   offset: 0
   distributed: false
   reverse: false
@@ -125,8 +125,8 @@ def dataset_create(
         "--user_id",
         help="The ID of the Discord user you want to use"
     ),
-    thought_time: int = typer.Option(
-        5,
+    thought_time: Optional[int] = typer.Option(
+        None,
         "--ttime",
         "--thought-time",
         help='The maximum amount of time in seconds to consider two individual messages to be part of the same "thought"'
@@ -137,36 +137,36 @@ def dataset_create(
         "--thought-max",
         help="The maximum length in words of each thought"
     ),
-    thought_min: int = typer.Option(
-        6,
+    thought_min: Optional[int] = typer.Option(
+        None,
         "--tmin",
         "--thought-min",
         help="The minimum length in words of each thought"
     ),
-    max_entries: int = typer.Option(
-        1000,
+    max_entries: Optional[int] = typer.Option(
+        None,
         "-m",
         "--max-entries",
         help="The max amount of entries (by lines) that may exist in the dataset"
     ),
-    offset: int = typer.Option(
-        0,
+    offset: Optional[int] = typer.Option(
+        None,
         "--os",
         "--offset",
         help="The offset by line index starting at 0 for where to start selecting lines for the dataset"
     ),
-    distributed: bool = typer.Option(
-        False,
+    distributed: Optional[bool] = typer.Option(
+        None,
         "--distributed",
         help="Select lines as an even distribution instead of sequentially"
     ),
-    reverse_lines: bool = typer.Option(
-        False,
+    reverse_lines: Optional[bool] = typer.Option(
+        None,
         "--reverse-lines",
         help="Reverse the order in which to select lines for the dataset"
     ),
-    redownload: bool = typer.Option(
-        False,
+    redownload: Optional[bool] = typer.Option(
+        None,
         "--redownload",
         help="Redownload the Discord chat logs"
     ),

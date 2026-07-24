@@ -39,17 +39,28 @@ def load_and_merge_config(yaml_path: Optional[str], cli_args: Dict[str, Any]) ->
         with open(yaml_path, 'r') as f:
             yaml_config = yaml.safe_load(f)
             if yaml_config:
+                # Extract the dataset section (if it exists) and merge its contents into config
+                dataset_config = yaml_config.get("dataset", {})
+
                 # Handle the case where discord_token might be at top level (legacy)
                 # and move it to dataset section if needed
                 if "discord_token" in yaml_config and "dataset" in yaml_config:
                     # If both exist, we need to check if discord_token is in dataset or top-level
                     if "discord_token" not in yaml_config["dataset"]:
                         # Move top-level discord_token to dataset section
-                        yaml_config["dataset"]["discord_token"] = yaml_config["discord_token"]
-                        del yaml_config["discord_token"]
-                config.update(yaml_config)
+                        dataset_config["discord_token"] = yaml_config["discord_token"]
 
-    # CLI arguments override YAML config
-    config.update(cli_args)
+                # Remap field names from YAML to match expected parameter names
+                # max_entry_count -> max_entries
+                if "max_entry_count" in dataset_config:
+                    dataset_config["max_entries"] = dataset_config.pop("max_entry_count")
+
+                # Merge the flattened dataset config into main config
+                config.update(dataset_config)
+
+    # CLI arguments override YAML config (but only those with non-None values)
+    # Filter out None values from cli_args to avoid overriding YAML values
+    filtered_cli_args = {k: v for k, v in cli_args.items() if v is not None}
+    config.update(filtered_cli_args)
 
     return config
