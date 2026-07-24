@@ -55,10 +55,11 @@ def build_json(thought: str) -> str:
 
 import json
 
+
 def add_to_dataset(thought: str, dataset_file, user_id: str = None):
     """
     Validate a thought, create a dataset JSON entry, and then add it to the dataset
     """
     # We'll validate in the calling function for better control
-    entry = {"prompt": f"{user_id[:13]} says:", "completion": thought}
+    entry = {"text": thought}
     dataset_file.write(json.dumps(entry) + "\n")
