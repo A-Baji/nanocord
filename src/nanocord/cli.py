@@ -7,7 +7,11 @@ import yaml
 
 from nanocord import global_logger
 from nanocord.config import load_and_merge_config
-from nanocord.dataset.dataset import create_export
+from nanocord.dataset.cpt import build_cpt_dataset
+from nanocord.dataset.sft import build_sft_dataset
+from nanocord.train.cpt import run_cpt_training
+from nanocord.train.sft import run_sft_training
+from nanocord.bot.register import register_bot
 from nanocord.paths import CONFIG_PATH
 
 # Use the global logger
@@ -26,6 +30,22 @@ dataset_app = typer.Typer(
     help="Export and prepare Discord chat data"
 )
 app.add_typer(dataset_app, name="dataset")
+
+
+# Sub-app for train commands
+train_app = typer.Typer(
+    name="train",
+    help="Train models using different techniques"
+)
+app.add_typer(train_app, name="train")
+
+
+# Sub-app for bot commands
+bot_app = typer.Typer(
+    name="bot",
+    help="Manage Discord bot functionality"
+)
+app.add_typer(bot_app, name="bot")
 
 
 @app.callback(invoke_without_command=True)
@@ -79,17 +99,26 @@ def init(
 # Values can be overridden by command-line arguments.
 
 dataset:
-  channel_id: ""
-  user_id: ""
-  discord_token: "{discord_token}" # Optional here, falls back to DISCORD_BOT_TOKEN env var if left empty
-  thought_time: 5
-  thought_min: 6
-  thought_max: null
-  max_entries: 1000
-  offset: 0
-  distributed: false
-  reverse: false
-  redownload: false
+  cpt:
+    channel_id: ""
+    user_id: ""
+    discord_token: "{discord_token}" # Optional here, falls back to DISCORD_BOT_TOKEN env var if left empty
+    thought_time: 5
+    thought_min: 6
+    thought_max: null
+    max_entries: 1000
+    offset: 0
+    distributed: false
+    reverse: false
+    redownload: false
+  sft: {{}}  # Placeholder for SFT dataset config
+
+train:
+  cpt: {{}}  # Placeholder for CPT training config
+  sft: {{}}  # Placeholder for SFT training config
+
+bot:
+  {{}}  # Placeholder for bot config
 """
 
     # Write the config file
@@ -105,8 +134,8 @@ dataset:
         typer.echo("  - Configuration file: config.yaml")
 
 
-@dataset_app.command("create")
-def dataset_create(
+@dataset_app.command("cpt")
+def dataset_cpt(
     discord_token: Optional[str] = typer.Option(
         None,
         "-d",
@@ -177,7 +206,7 @@ def dataset_create(
     ),
 ):
     """
-    Download Discord channel logs, parse them into a dataset, and save the results locally
+    Download Discord channel logs, parse them into a CPT dataset, and save the results locally
     """
 
     # Prepare CLI arguments for merging
@@ -195,8 +224,8 @@ def dataset_create(
         "redownload": redownload
     }
 
-    # Load and merge configuration
-    merged_config = load_and_merge_config(config_file, cli_args)
+    # Load and merge configuration - pass "dataset.cpt" as the section to load
+    merged_config = load_and_merge_config(config_file, cli_args, "dataset.cpt")
 
     # Handle Discord token fallback to environment variable
     if not merged_config["discord_token"]:
@@ -211,8 +240,8 @@ def dataset_create(
         typer.secho("Error: User ID must be provided via --user_id or config.yaml", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
-    # Unpack the merged configuration into create_export function
-    create_export(
+    # Unpack the merged configuration into build_cpt_dataset function
+    build_cpt_dataset(
         channel_id=merged_config["channel_id"],
         user_id=merged_config["user_id"],
         bot_token=merged_config["discord_token"],
@@ -225,6 +254,174 @@ def dataset_create(
         reverse=merged_config["reverse"],
         redownload=merged_config["redownload"]
     )
+
+
+@dataset_app.command("sft")
+def dataset_sft(
+    config_file: Optional[str] = typer.Option(
+        str(CONFIG_PATH),
+        "--config",
+        help="Path to YAML configuration file (default: user data directory)"
+    ),
+):
+    """
+    Build SFT dataset from CPT dataset
+    """
+
+    # Load and merge configuration - pass "dataset.sft" as the section to load
+    merged_config = load_and_merge_config(config_file, {}, "dataset.sft")
+
+    try:
+        # Call the build_sft_dataset function
+        dataset_path = build_sft_dataset(merged_config)
+        typer.echo(f"SFT dataset created at: {dataset_path}")
+    except NotImplementedError:
+        typer.secho("Error: SFT dataset building not yet implemented", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@train_app.command("cpt")
+def train_cpt(
+    config_file: Optional[str] = typer.Option(
+        str(CONFIG_PATH),
+        "--config",
+        help="Path to YAML configuration file (default: user data directory)"
+    ),
+):
+    """
+    Run CPT training on the dataset
+    """
+
+    # Load and merge configuration - pass "train.cpt" as the section to load
+    merged_config = load_and_merge_config(config_file, {}, "train.cpt")
+
+    try:
+        # Call the run_cpt_training function
+        checkpoint_path = run_cpt_training(merged_config)
+        typer.echo(f"CPT training completed. Checkpoint saved at: {checkpoint_path}")
+    except NotImplementedError:
+        typer.secho("Error: CPT training not yet implemented", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@train_app.command("sft")
+def train_sft(
+    config_file: Optional[str] = typer.Option(
+        str(CONFIG_PATH),
+        "--config",
+        help="Path to YAML configuration file (default: user data directory)"
+    ),
+):
+    """
+    Run SFT training on the CPT checkpoint
+    """
+
+    # Load and merge configuration - pass "train.sft" as the section to load
+    merged_config = load_and_merge_config(config_file, {}, "train.sft")
+
+    try:
+        # Call the run_sft_training function
+        model_path = run_sft_training(merged_config)
+        typer.echo(f"SFT training completed. Model saved at: {model_path}")
+    except NotImplementedError:
+        typer.secho("Error: SFT training not yet implemented", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@bot_app.command("register")
+def bot_register(
+    config_file: Optional[str] = typer.Option(
+        str(CONFIG_PATH),
+        "--config",
+        help="Path to YAML configuration file (default: user data directory)"
+    ),
+):
+    """
+    Register the Discord bot and serve the fine-tuned model
+    """
+
+    # Load and merge configuration - pass "bot" as the section to load
+    merged_config = load_and_merge_config(config_file, {}, "bot")
+
+    try:
+        # Call the register_bot function
+        register_bot(merged_config)
+        typer.echo("Bot registration completed successfully")
+    except NotImplementedError:
+        typer.secho("Error: Bot registration not yet implemented", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@app.command("pipeline")
+def pipeline_run(
+    skip_cpt_dataset: bool = typer.Option(False, "--skip-cpt-dataset", help="Skip building the CPT dataset"),
+    skip_cpt_train: bool = typer.Option(False, "--skip-cpt-train", help="Skip training on the CPT dataset"),
+    skip_sft_dataset: bool = typer.Option(False, "--skip-sft-dataset", help="Skip building the SFT dataset"),
+    skip_sft_train: bool = typer.Option(False, "--skip-sft-train", help="Skip training on the SFT dataset"),
+    skip_bot: bool = typer.Option(False, "--skip-bot", help="Skip bot registration"),
+    config_file: Optional[str] = typer.Option(
+        str(CONFIG_PATH),
+        "--config",
+        help="Path to YAML configuration file (default: user data directory)"
+    ),
+):
+    """
+    Run the complete pipeline from dataset creation to model serving
+    """
+
+    # Load full configuration once
+    merged_config = load_and_merge_config(config_file, {}, "dataset.cpt")
+
+    try:
+        if not skip_cpt_dataset:
+            typer.echo("Building CPT dataset...")
+            # Call the existing build_cpt_dataset function (this is from dataset/cpt.py)
+            build_cpt_dataset(
+                channel_id=merged_config["channel_id"],
+                user_id=merged_config["user_id"],
+                bot_token=merged_config["discord_token"],
+                thought_time=merged_config["thought_time"],
+                thought_max=merged_config["thought_max"],
+                thought_min=merged_config["thought_min"],
+                max_entry_count=merged_config["max_entries"],
+                offset=merged_config["offset"],
+                distributed=merged_config["distributed"],
+                reverse=merged_config["reverse"],
+                redownload=merged_config["redownload"]
+            )
+            typer.echo("CPT dataset built successfully")
+
+        if not skip_cpt_train:
+            typer.echo("Running CPT training...")
+            # Load the CPT config section
+            cpt_config = load_and_merge_config(config_file, {}, "train.cpt")
+            run_cpt_training(cpt_config)
+            typer.echo("CPT training completed successfully")
+
+        if not skip_sft_dataset:
+            typer.echo("Building SFT dataset...")
+            # Load the SFT config section
+            sft_config = load_and_merge_config(config_file, {}, "dataset.sft")
+            build_sft_dataset(sft_config)
+            typer.echo("SFT dataset built successfully")
+
+        if not skip_sft_train:
+            typer.echo("Running SFT training...")
+            # Load the SFT config section
+            sft_train_config = load_and_merge_config(config_file, {}, "train.sft")
+            run_sft_training(sft_train_config)
+            typer.echo("SFT training completed successfully")
+
+        if not skip_bot:
+            typer.echo("Registering bot...")
+            # Load the bot config section
+            bot_config = load_and_merge_config(config_file, {}, "bot")
+            register_bot(bot_config)
+            typer.echo("Bot registration completed successfully")
+
+    except NotImplementedError as e:
+        typer.secho(f"Pipeline step failed: {str(e)}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
 
 
 # Create a sub-app for config commands

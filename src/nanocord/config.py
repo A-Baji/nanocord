@@ -9,13 +9,14 @@ from typing import Any, Dict, Optional
 import yaml
 
 
-def load_and_merge_config(yaml_path: Optional[str], cli_args: Dict[str, Any]) -> Dict[str, Any]:
+def load_and_merge_config(yaml_path: Optional[str], cli_args: Dict[str, Any], section: str = "dataset") -> Dict[str, Any]:
     """
     Load configuration from a YAML file and merge with CLI arguments.
 
     Args:
         yaml_path: Path to the YAML config file (optional)
         cli_args: Dictionary of CLI arguments
+        section: The section path to load from the YAML config (supports dot notation like "dataset.cpt")
 
     Returns:
         Merged configuration dictionary
@@ -40,8 +41,14 @@ def load_and_merge_config(yaml_path: Optional[str], cli_args: Dict[str, Any]) ->
         with open(yaml_path, 'r') as f:
             yaml_config = yaml.safe_load(f)
             if yaml_config:
-                # Extract the dataset section (if it exists) and merge its contents into config
-                dataset_config = yaml_config.get("dataset", {})
+                # Navigate to the specified section using dot notation
+                section_config = yaml_config
+                for key in section.split('.'):
+                    if key in section_config:
+                        section_config = section_config[key]
+                    else:
+                        section_config = {}
+                        break
 
                 # Handle the case where discord_token might be at top level (legacy)
                 # and move it to dataset section if needed
@@ -49,15 +56,15 @@ def load_and_merge_config(yaml_path: Optional[str], cli_args: Dict[str, Any]) ->
                     # If both exist, we need to check if discord_token is in dataset or top-level
                     if "discord_token" not in yaml_config["dataset"]:
                         # Move top-level discord_token to dataset section
-                        dataset_config["discord_token"] = yaml_config["discord_token"]
+                        section_config["discord_token"] = yaml_config["discord_token"]
 
                 # Remap field names from YAML to match expected parameter names
                 # max_entry_count -> max_entries
-                if "max_entry_count" in dataset_config:
-                    dataset_config["max_entries"] = dataset_config.pop("max_entry_count")
+                if "max_entry_count" in section_config:
+                    section_config["max_entries"] = section_config.pop("max_entry_count")
 
-                # Merge the flattened dataset config into main config
-                config.update(dataset_config)
+                # Merge the flattened config into main config
+                config.update(section_config)
 
     # CLI arguments override YAML config (but only those with non-None values)
     # Filter out None values from cli_args to avoid overriding YAML values

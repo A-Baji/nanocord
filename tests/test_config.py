@@ -1,8 +1,3 @@
-import os
-from pathlib import Path
-import tempfile
-
-import pytest
 import yaml
 
 from nanocord.config import load_and_merge_config
@@ -14,16 +9,18 @@ def test_load_and_merge_config_yaml_values_load_correctly(tmp_path):
     # Create a temporary YAML file with nested dataset structure
     yaml_content = {
         "dataset": {
-            "channel_id": "test-channel",
-            "user_id": "test-user",
-            "thought_time": 10,
-            "thought_max": 200,
-            "thought_min": 8,
-            "max_entries": 500,
-            "offset": 5,
-            "distributed": True,
-            "reverse": True,
-            "redownload": True
+            "cpt": {
+                "channel_id": "test-channel",
+                "user_id": "test-user",
+                "thought_time": 10,
+                "thought_max": 200,
+                "thought_min": 8,
+                "max_entries": 500,
+                "offset": 5,
+                "distributed": True,
+                "reverse": True,
+                "redownload": True
+            }
         }
     }
 
@@ -45,7 +42,7 @@ def test_load_and_merge_config_yaml_values_load_correctly(tmp_path):
         "redownload": None
     }
 
-    result = load_and_merge_config(str(yaml_file), cli_args)
+    result = load_and_merge_config(str(yaml_file), cli_args, "dataset.cpt")
 
     # Verify all YAML values are loaded correctly
     assert result["channel_id"] == "test-channel"
@@ -66,11 +63,13 @@ def test_load_and_merge_config_cli_overrides_yaml(tmp_path):
     # Create a temporary YAML file with some values
     yaml_content = {
         "dataset": {
-            "channel_id": "yaml-channel",
-            "user_id": "yaml-user",
-            "thought_time": 10,
-            "max_entries": 500,
-            "distributed": False
+            "cpt": {
+                "channel_id": "yaml-channel",
+                "user_id": "yaml-user",
+                "thought_time": 10,
+                "max_entries": 500,
+                "distributed": False
+            }
         }
     }
 
@@ -87,7 +86,7 @@ def test_load_and_merge_config_cli_overrides_yaml(tmp_path):
         "distributed": True        # This should override YAML
     }
 
-    result = load_and_merge_config(str(yaml_file), cli_args)
+    result = load_and_merge_config(str(yaml_file), cli_args, "dataset.cpt")
 
     # Verify CLI values override YAML where provided
     assert result["channel_id"] == "cli-channel"  # CLI overrides YAML
@@ -103,8 +102,10 @@ def test_load_and_merge_config_defaults_when_absent(tmp_path):
     # Create a temporary YAML file with partial values (missing some keys)
     yaml_content = {
         "dataset": {
-            "channel_id": "test-channel",
-            # Note: missing several keys like user, thought_time, etc.
+            "cpt": {
+                "channel_id": "test-channel",
+                # Note: missing several keys like user, thought_time, etc.
+            }
         }
     }
 
@@ -126,7 +127,7 @@ def test_load_and_merge_config_defaults_when_absent(tmp_path):
         "redownload": None
     }
 
-    result = load_and_merge_config(str(yaml_file), cli_args)
+    result = load_and_merge_config(str(yaml_file), cli_args, "dataset.cpt")
 
     # Verify defaults are applied for missing keys
     assert result["channel_id"] == "test-channel"  # From YAML
@@ -147,8 +148,10 @@ def test_load_and_merge_config_boolean_field_respected(tmp_path):
     # Create a temporary YAML file with boolean field set to True
     yaml_content = {
         "dataset": {
-            "distributed": True,  # Boolean field set to True in YAML
-            "channel_id": "test-channel"
+            "cpt": {
+                "distributed": True,  # Boolean field set to True in YAML
+                "channel_id": "test-channel"
+            }
         }
     }
 
@@ -170,7 +173,7 @@ def test_load_and_merge_config_boolean_field_respected(tmp_path):
         "redownload": None
     }
 
-    result = load_and_merge_config(str(yaml_file), cli_args)
+    result = load_and_merge_config(str(yaml_file), cli_args, "dataset.cpt")
 
     # Verify boolean field from YAML is respected
     assert result["distributed"] is True  # From YAML, no CLI override
@@ -266,7 +269,9 @@ def test_load_and_merge_config_legacy_discord_token_handling(tmp_path):
     yaml_content = {
         "discord_token": "legacy-token-123",
         "dataset": {
-            "channel_id": "test-channel"
+            "cpt": {
+                "channel_id": "test-channel"
+            }
         }
     }
 
@@ -282,8 +287,60 @@ def test_load_and_merge_config_legacy_discord_token_handling(tmp_path):
         "distributed": None
     }
 
-    result = load_and_merge_config(str(yaml_file), cli_args)
+    result = load_and_merge_config(str(yaml_file), cli_args, "dataset.cpt")
 
     # Verify the token was moved to dataset section
     assert result["channel_id"] == "test-channel"
     assert result["discord_token"] == "legacy-token-123"  # Should be in dataset now
+
+
+def test_load_and_merge_config_nested_sections(tmp_path):
+    """Test that different sections can be loaded correctly."""
+
+    # Create a YAML file with multiple sections
+    yaml_content = {
+        "dataset": {
+            "cpt": {
+                "channel_id": "cpt-channel",
+                "user_id": "cpt-user",
+                "thought_time": 10
+            },
+            "sft": {
+                "channel_id": "sft-channel",
+                "user_id": "sft-user",
+                "thought_time": 15
+            }
+        }
+    }
+
+    yaml_file = tmp_path / "config.yaml"
+    with open(yaml_file, 'w') as f:
+        yaml.safe_dump(yaml_content, f)
+
+    # Test loading cpt section
+    cli_args = {
+        "channel_id": None,
+        "user_id": None,
+        "thought_time": None,
+        "thought_max": None,
+        "thought_min": None,
+        "max_entries": None,
+        "offset": None,
+        "distributed": None,
+        "reverse": None,
+        "redownload": None
+    }
+
+    result_cpt = load_and_merge_config(str(yaml_file), cli_args, "dataset.cpt")
+
+    # Test loading sft section
+    result_sft = load_and_merge_config(str(yaml_file), cli_args, "dataset.sft")
+
+    # Verify different sections return different values
+    assert result_cpt["channel_id"] == "cpt-channel"
+    assert result_cpt["user_id"] == "cpt-user"
+    assert result_cpt["thought_time"] == 10
+
+    assert result_sft["channel_id"] == "sft-channel"
+    assert result_sft["user_id"] == "sft-user"
+    assert result_sft["thought_time"] == 15
