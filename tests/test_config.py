@@ -344,3 +344,65 @@ def test_load_and_merge_config_nested_sections(tmp_path):
     assert result_sft["channel_id"] == "sft-channel"
     assert result_sft["user_id"] == "sft-user"
     assert result_sft["thought_time"] == 15
+
+
+def test_load_and_merge_config_dataset_level_shared_params_inherited(tmp_path):
+    """A scalar under dataset: (sibling of cpt:/sft:) is inherited by both modes."""
+
+    yaml_content = {
+        "dataset": {
+            "channel_id": "shared-channel",
+            "user_id": "shared-user",
+            "discord_token": "shared-token",
+            "cpt": {"thought_time": 10},
+            "sft": {"thought_time": 20},
+        }
+    }
+
+    yaml_file = tmp_path / "config.yaml"
+    with open(yaml_file, 'w') as f:
+        yaml.safe_dump(yaml_content, f)
+
+    empty_cli = {"channel_id": None, "user_id": None, "discord_token": None, "thought_time": None}
+
+    result_cpt = load_and_merge_config(str(yaml_file), empty_cli, "dataset.cpt")
+    result_sft = load_and_merge_config(str(yaml_file), empty_cli, "dataset.sft")
+
+    # Shared params inherited by both
+    assert result_cpt["channel_id"] == "shared-channel"
+    assert result_cpt["user_id"] == "shared-user"
+    assert result_cpt["discord_token"] == "shared-token"
+    assert result_sft["channel_id"] == "shared-channel"
+    assert result_sft["user_id"] == "shared-user"
+    assert result_sft["discord_token"] == "shared-token"
+
+    # Mode-specific params stay independent
+    assert result_cpt["thought_time"] == 10
+    assert result_sft["thought_time"] == 20
+
+
+def test_load_and_merge_config_child_level_overrides_inherited_param(tmp_path):
+    """A key redeclared inside dataset.sft: overrides the same key inherited from dataset:,
+    without affecting dataset.cpt's value for that key."""
+
+    yaml_content = {
+        "dataset": {
+            "channel_id": "shared-channel",
+            "user_id": "shared-user",
+            "cpt": {},
+            "sft": {"channel_id": "sft-only-channel"},
+        }
+    }
+
+    yaml_file = tmp_path / "config.yaml"
+    with open(yaml_file, 'w') as f:
+        yaml.safe_dump(yaml_content, f)
+
+    empty_cli = {"channel_id": None, "user_id": None}
+
+    result_cpt = load_and_merge_config(str(yaml_file), empty_cli, "dataset.cpt")
+    result_sft = load_and_merge_config(str(yaml_file), empty_cli, "dataset.sft")
+
+    assert result_cpt["channel_id"] == "shared-channel"   # unaffected by sft's override
+    assert result_sft["channel_id"] == "sft-only-channel"  # overridden
+    assert result_sft["user_id"] == "shared-user"           # still inherited, untouched

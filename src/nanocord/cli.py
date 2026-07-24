@@ -6,13 +6,13 @@ import typer
 import yaml
 
 from nanocord import global_logger
+from nanocord.bot.register import register_bot
 from nanocord.config import load_and_merge_config
 from nanocord.dataset.cpt import build_cpt_dataset
 from nanocord.dataset.sft import build_sft_dataset
+from nanocord.paths import CONFIG_PATH
 from nanocord.train.cpt import run_cpt_training
 from nanocord.train.sft import run_sft_training
-from nanocord.bot.register import register_bot
-from nanocord.paths import CONFIG_PATH
 
 # Use the global logger
 logger = global_logger
@@ -99,7 +99,8 @@ def init(
 # Values can be overridden by command-line arguments.
 
 dataset:
-  cpt:
+    # Params here are shared by both dataset.cpt and dataset.sft below -
+    # redeclare a key inside either one to override it just for that mode.
     channel_id: ""
     user_id: ""
     discord_token: "{discord_token}" # Optional here, falls back to DISCORD_BOT_TOKEN env var if left empty
@@ -111,14 +112,19 @@ dataset:
     distributed: false
     reverse: false
     redownload: false
-  sft: {{}}  # Placeholder for SFT dataset config
+    cpt:
+        # Overrides for CPT dataset config
+    sft:
+        # Placeholder for SFT dataset config
 
 train:
-  cpt: {{}}  # Placeholder for CPT training config
-  sft: {{}}  # Placeholder for SFT training config
+    cpt:
+        # Placeholder for CPT training config
+    sft:
+        # Placeholder for SFT training config
 
 bot:
-  {{}}  # Placeholder for bot config
+    # Placeholder for bot config
 """
 
     # Write the config file
