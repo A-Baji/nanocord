@@ -1,11 +1,17 @@
+"""
+Dataset creation functions for CPT (Continued Pre-Training) datasets.
+"""
+
 from datetime import datetime
 from datetime import timedelta
 import json
 from os import path
+from pathlib import Path
+from string import punctuation
+from typing import Optional
 
 from nanocord import global_logger
 from nanocord.dataset.discord_export import export_channel_logs
-from nanocord.dataset.thoughts import add_to_dataset
 from nanocord.dataset.thoughts import build_thought
 from nanocord.dataset.thoughts import cleanup_string
 from nanocord.dataset.thoughts import UserNotFoundError
@@ -16,28 +22,39 @@ from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH
 # Use the global logger
 logger = global_logger
 
+def add_to_dataset(thought: str, dataset_file):
+    """
+    Validate a thought, create a dataset JSON entry, and then add it to the dataset
+    """
+    if thought[-1] not in punctuation:
+            thought += "."
+    entry = {"text": thought}
+    dataset_file.write(json.dumps(entry) + "\n")
 
 def parse_logs(
     file: str,
     channel: str,
     user: str,
-    thought_time=5,
-    thought_max: int = None,
-    thought_min=6,
-):
+    thought_time: int = 5,
+    thought_max: Optional[int] = None,
+    thought_min: int = 6,
+) -> Path:
     """
     Parse Discord chat logs and create a dataset of thoughts.
 
     Args:
-        file (str): Path to the Discord chat log JSON file
-        channel (str): The ID of the Discord channel
-        user (str): The unique username of the Discord user
-        thought_time (int): Maximum time in seconds between messages to consider part of same thought
-        thought_max (int): Maximum word count for a thought
-        thought_min (int): Minimum word count for a thought
+        file: Path to the Discord chat log JSON file
+        channel: The ID of the Discord channel
+        user: The unique username of the Discord user
+        thought_time: Maximum time in seconds between messages to consider part of same thought
+        thought_max: Maximum word count for a thought
+        thought_min: Minimum word count for a thought
 
     Returns:
-        pathlib.Path: Path to the created dataset file
+        Path: Path to the created dataset file
+
+    Raises:
+        UserNotFoundError: If no messages are found for the specified user
     """
 
     files_path = DATASET_PATH
@@ -74,14 +91,14 @@ def parse_logs(
                     if differentiation > thought_time * 1000:
                         # Validate and add the completed thought to dataset
                         if validate_thought(thought, thought_min, thought_max):
-                            add_to_dataset(thought, dataset, user)
+                            add_to_dataset(thought, dataset)
                         thought = build_thought("", msg)
                     else:
                         thought = build_thought(thought, msg)
 
             # Add the final thought
             if validate_thought(thought, thought_min, thought_max):
-                add_to_dataset(thought, dataset, user)
+                add_to_dataset(thought, dataset)
 
     if path.getsize(dataset_file_path) == 0:
         logger.warning(
@@ -91,16 +108,16 @@ def parse_logs(
     return dataset_file_path
 
 
-def get_lines(file_name: str, N=1000, offset=0, distributed=False, reverse=False):
+def get_lines(file_name: str, N: int = 1000, offset: int = 0, distributed: bool = False, reverse: bool = False) -> None:
     """
     Select lines from a dataset file based on various criteria.
 
     Args:
-        file_name (str): Path to the dataset file
-        N (int): Maximum number of entries to select
-        offset (int): Offset by line index starting at 0 for where to start selecting lines
-        distributed (bool): Select lines as an even distribution instead of sequentially
-        reverse (bool): Reverse the order in which to select lines
+        file_name: Path to the dataset file
+        N: Maximum number of entries to select
+        offset: Offset by line index starting at 0 for where to start selecting lines
+        distributed: Select lines as an even distribution instead of sequentially
+        reverse: Reverse the order in which to select lines
 
     Returns:
         None: Modifies the file in place
@@ -126,24 +143,43 @@ def get_lines(file_name: str, N=1000, offset=0, distributed=False, reverse=False
     f.close()
 
 
-def create_export(
+def build_cpt_dataset(
     channel_id: str,
     user_id: str,
     bot_token: str,
-    thought_time=10,
-    thought_max: int = None,
-    thought_min=4,
-    max_entry_count=1000,
-    offset=0,
-    distributed=False,
-    reverse=False,
-    redownload=False,
-):
+    thought_time: int = 10,
+    thought_max: Optional[int] = None,
+    thought_min: int = 4,
+    max_entry_count: int = 1000,
+    offset: int = 0,
+    distributed: bool = False,
+    reverse: bool = False,
+    redownload: bool = False,
+) -> Path:
     """
-    Main function to orchestrate the export and dataset creation process.
+    Main function to orchestrate the export and dataset creation process for CPT.
 
     This function coordinates downloading Discord logs, parsing them into a dataset,
     and applying various filtering operations.
+
+    Args:
+        channel_id: The ID of the Discord channel you want to use
+        user_id: The ID of the Discord user you want to use
+        bot_token: The Discord token for your bot. Must either be provided as an argument
+                   or set as the DISCORD_BOT_TOKEN environment variable
+        thought_time: The maximum amount of time in seconds to consider two individual
+                      messages to be part of the same "thought"
+        thought_max: The maximum length in words of each thought
+        thought_min: The minimum length in words of each thought
+        max_entry_count: The max amount of entries (by lines) that may exist in the dataset
+        offset: The offset by line index starting at 0 for where to start selecting lines
+                for the dataset
+        distributed: Select lines as an even distribution instead of sequentially
+        reverse: Reverse the order in which to select lines for the dataset
+        redownload: Redownload the Discord chat logs
+
+    Returns:
+        Path: Path to the created dataset file
     """
     channel_user = f"{user_id}_{channel_id}"
 
@@ -177,6 +213,8 @@ def create_export(
         )
     except UserNotFoundError as e:
         logger.error(f"{e}")
-        return
+        raise  # Re-raise to signal failure
     get_lines(full_dataset_path, max_entry_count, offset, distributed, reverse)
     logger.info(f"Dataset saved to {full_dataset_path}")
+
+    return full_dataset_path

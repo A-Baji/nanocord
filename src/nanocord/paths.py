@@ -13,6 +13,9 @@ PROCESSED_DATA_DIR = DATA_DIR / "processed"
 RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+# Configuration path
+CONFIG_PATH = DATA_DIR / "config.yaml"
+
 # DiscordChatExporter logs path
 DISCORD_CHAT_EXPORTER_LOGS_PATH = RAW_DATA_DIR
 

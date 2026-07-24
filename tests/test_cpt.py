@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
-from nanocord.dataset.dataset import get_lines
-from nanocord.dataset.dataset import parse_logs
+from nanocord.dataset.cpt import get_lines
+from nanocord.dataset.cpt import parse_logs
 from nanocord.dataset.thoughts import UserNotFoundError
 
 
