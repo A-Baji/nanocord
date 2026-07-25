@@ -55,7 +55,7 @@ def parse_logs(
     """
 
     files_path = DATASET_PATH
-    dataset_file_path = files_path / f"{user}_{channel}_data_set.jsonl"
+    dataset_file_path = files_path / f"{user}_{channel}_cpt_data_set.jsonl"
 
     with open(file, "r", encoding="utf-8") as data_file:
         data = json.load(data_file)
@@ -163,7 +163,7 @@ def build_cpt_dataset(
 
     # Get log file path
     full_logs_path = DISCORD_CHAT_EXPORTER_LOGS_PATH / f"{channel_id}_logs.json"
-    full_dataset_path = DATASET_PATH / f"{channel_user}_data_set.jsonl"
+    full_dataset_path = DATASET_PATH / f"{channel_user}_cpt_data_set.jsonl"
 
     # Download logs
     if not full_logs_path.exists() or redownload:
