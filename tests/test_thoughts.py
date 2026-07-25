@@ -40,7 +40,7 @@ def test_build_thought():
     # Test building a thought from empty string and message
     msg = {"content": "Hello world"}
     thought = build_thought("", msg)
-    assert thought == " Hello world"
+    assert thought == "Hello world"
 
     # Test adding to existing thought
     existing_thought = "Hello world"

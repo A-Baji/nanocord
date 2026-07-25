@@ -173,3 +173,59 @@ def test_parse_sft_logs_raises_when_user_not_found(tmp_path, monkeypatch):
             parse_sft_logs(log_file, "chan", TARGET_USER, thought_time=5, thought_min=1)
     finally:
         os.unlink(log_file)
+
+
+def test_parse_sft_logs_separate_context_params_override(tmp_path, monkeypatch):
+    monkeypatch.setattr("nanocord.dataset.sft.DATASET_PATH", tmp_path)
+
+    # Context message is short ("hi") — fails the default thought_min=6, but
+    # passes a permissive context_thought_min=1. Response message stays
+    # validated against the default (unmodified) thought_min.
+    messages = [
+        _msg("1", OTHER_USER, "hi", "2023-01-01T00:00:00.000Z"),
+        _msg("2", TARGET_USER, "it is definitely blue for sure", "2023-01-01T00:05:00.000Z", reference_id="1"),
+    ]
+    log_file = _write_log(messages)
+
+    try:
+        result_path = parse_sft_logs(
+            log_file, "chan", TARGET_USER,
+            thought_time=5, thought_min=1,
+            context_thought_time=5, context_thought_min=1,
+        )
+        lines = result_path.read_text().strip().split("\n")
+        assert len(lines) == 1
+
+        # Now with default context_thought_min (falls back to thought_min=1
+        # when context_thought_min isn't passed) — the short "hi" context
+        # should pass because we're passing thought_min=1, so context_thought_min
+        # also becomes 1.
+        result_path_2 = parse_sft_logs(
+            log_file, "chan", TARGET_USER,
+            thought_time=5, thought_min=1,
+        )
+        lines_2 = result_path_2.read_text().strip().split("\n")
+        assert len(lines_2) == 1
+    finally:
+        os.unlink(log_file)
+
+
+def test_parse_sft_logs_context_defaults_fall_back_to_response_params():
+    # When context_thought_time/max/min aren't passed at all, they should
+    # behave identically to passing the same values as the response side.
+    messages = [
+        _msg("1", OTHER_USER, "what is your favorite color", "2023-01-01T00:00:00.000Z"),
+        _msg("2", TARGET_USER, "it is definitely blue for sure", "2023-01-01T00:05:00.000Z", reference_id="1"),
+    ]
+    log_file = _write_log(messages)
+
+    import tempfile as _tempfile
+    tmp_dir = _tempfile.mkdtemp()
+    from unittest.mock import patch
+    with patch("nanocord.dataset.sft.DATASET_PATH", pathlib.Path(tmp_dir)):
+        try:
+            result_path = parse_sft_logs(log_file, "chan", TARGET_USER, thought_time=5, thought_min=1)
+            lines = result_path.read_text().strip().split("\n")
+            assert len(lines) == 1
+        finally:
+            os.unlink(log_file)

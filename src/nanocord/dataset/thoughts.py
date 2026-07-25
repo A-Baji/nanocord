@@ -38,9 +38,9 @@ def build_thought(thought: str, msg: dict) -> str:
         return the thought
     """
     content = msg["content"].strip()  # Remove leading/trailing spaces
-    if content:
-        thought += f" {content}"
-    return thought
+    if not content:
+        return thought
+    return f"{thought} {content}".strip()
 
 
 def group_into_thoughts(messages: list, thought_time: int) -> list:

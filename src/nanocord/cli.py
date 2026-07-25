@@ -299,6 +299,15 @@ def dataset_sft(
     # Load and merge configuration - pass "dataset.sft" as the section to load
     merged_config = load_and_merge_config(config_file, {}, "dataset.sft")
 
+    # Load the context-specific overrides, if any. If dataset.sft.context: is
+    # not set in config.yaml, this resolves to the exact same values as
+    # merged_config above, since load_and_merge_config's section walk simply
+    # stops at the deepest key that exists and returns what it already merged.
+    context_config = load_and_merge_config(config_file, {}, "dataset.sft.context")
+    merged_config["context_thought_time"] = context_config["thought_time"]
+    merged_config["context_thought_max"] = context_config["thought_max"]
+    merged_config["context_thought_min"] = context_config["thought_min"]
+
     try:
         # Call the build_sft_dataset function
         dataset_path = build_sft_dataset(merged_config)

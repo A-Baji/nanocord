@@ -29,6 +29,9 @@ def parse_sft_logs(
     thought_max: Optional[int] = None,
     thought_min: int = 6,
     system_prompt: str = "",
+    context_thought_time: Optional[int] = None,
+    context_thought_max: Optional[int] = None,
+    context_thought_min: Optional[int] = None,
 ) -> Path:
     """
     Parse Discord chat logs and create an SFT dataset of (context thought ->
@@ -41,10 +44,17 @@ def parse_sft_logs(
         channel: The ID of the Discord channel
         user: The unique user ID of the target Discord user
         thought_time: Maximum time in seconds between messages to consider
-                      part of the same thought
-        thought_max: Maximum word count for a thought
-        thought_min: Minimum word count for a thought
+                      part of the same thought, for the response (target-user)
+                      side
+        thought_max: Maximum word count for a thought, for the response side
+        thought_min: Minimum word count for a thought, for the response side
         system_prompt: System prompt content embedded in every output record
+        context_thought_time: Same as thought_time but for the context side.
+                               Defaults to thought_time if not given.
+        context_thought_max: Same as thought_max but for the context side.
+                              Defaults to thought_max if not given.
+        context_thought_min: Same as thought_min but for the context side.
+                              Defaults to thought_min if not given.
 
     Returns:
         Path: Path to the created dataset file
@@ -52,6 +62,10 @@ def parse_sft_logs(
     Raises:
         UserNotFoundError: If no messages are found for the specified user
     """
+    context_thought_time = thought_time if context_thought_time is None else context_thought_time
+    context_thought_max = thought_max if context_thought_max is None else context_thought_max
+    context_thought_min = thought_min if context_thought_min is None else context_thought_min
+
     files_path = DATASET_PATH
     dataset_file_path = files_path / f"{user}_{channel}_sft_data_set.jsonl"
 
@@ -72,8 +86,9 @@ def parse_sft_logs(
         ]
 
         thought_max = 999999 if not thought_max else thought_max
+        context_thought_max = 999999 if not context_thought_max else context_thought_max
 
-        context_thoughts = group_into_thoughts(context_messages, thought_time)
+        context_thoughts = group_into_thoughts(context_messages, context_thought_time)
         message_id_to_context_thought = {}
         for thought in context_thoughts:
             for message_id in thought["message_ids"]:
@@ -97,7 +112,7 @@ def parse_sft_logs(
                 context_text = context_thought["text"]
                 response_text = reply_thought["text"]
 
-                if not validate_thought(context_text, thought_min, thought_max):
+                if not validate_thought(context_text, context_thought_min, context_thought_max):
                     continue
                 if not validate_thought(response_text, thought_min, thought_max):
                     continue
@@ -146,6 +161,9 @@ def build_sft_dataset(config: Dict) -> Path:
     thought_max = config.get("thought_max")
     thought_min = config.get("thought_min", 6)
     system_prompt = config.get("system_prompt", "")
+    context_thought_time = config.get("context_thought_time", thought_time)
+    context_thought_max = config.get("context_thought_max", thought_max)
+    context_thought_min = config.get("context_thought_min", thought_min)
     max_entry_count = config.get("max_entries", 1000)
     offset = config.get("offset", 0)
     distributed = config.get("distributed", False)
@@ -179,6 +197,9 @@ def build_sft_dataset(config: Dict) -> Path:
             thought_max,
             thought_min,
             system_prompt,
+            context_thought_time,
+            context_thought_max,
+            context_thought_min,
         )
     except UserNotFoundError as e:
         logger.error(f"{e}")
