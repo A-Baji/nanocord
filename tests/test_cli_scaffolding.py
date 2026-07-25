@@ -64,6 +64,22 @@ def test_help_commands():
     assert result.returncode == 0
 
 
+def test_dataset_sft_help_shows_parameter_flags():
+    """Regression test: dataset sft --help must show its parameter flags,
+    not just --config/--help."""
+    result = subprocess.run(
+        [sys.executable, "src/nanocord/cli.py", "dataset", "sft", "--help"],
+        capture_output=True, text=True
+    )
+    assert result.returncode == 0
+    # Check for key flags - some may be truncated in display but should still be present
+    for flag in [
+        "--channel_id", "--user_id", "--discord-token", "--thought-time",
+        "--system-prompt", "--cttime"
+    ]:
+        assert flag in result.stdout
+
+
 if __name__ == "__main__":
     test_help_commands()
     print("All CLI help tests passed!")

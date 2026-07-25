@@ -286,6 +286,97 @@ def dataset_cpt(
 
 @dataset_app.command("sft")
 def dataset_sft(
+    discord_token: Optional[str] = typer.Option(
+        None,
+        "-d",
+        "--discord-token",
+        help="The Discord token for your bot. Must either be provided as an argument or set as the DISCORD_BOT_TOKEN environment variable"
+    ),
+    channel_id: Optional[str] = typer.Option(
+        None,
+        "-c",
+        "--channel_id",
+        help="The ID of the Discord channel you want to use"
+    ),
+    user_id: Optional[str] = typer.Option(
+        None,
+        "-u",
+        "--user_id",
+        help="The ID of the Discord user you want to use"
+    ),
+    exporter_path: Optional[str] = typer.Option(
+        None,
+        "--exporter-path",
+        help="Path to the DiscordChatExporter.Cli executable"
+    ),
+    thought_time: Optional[int] = typer.Option(
+        None,
+        "--ttime",
+        "--thought-time",
+        help='The maximum amount of time in seconds to consider two individual messages to be part of the same "thought", for the response (target-user) side'
+    ),
+    thought_max: Optional[int] = typer.Option(
+        None,
+        "--tmax",
+        "--thought-max",
+        help="The maximum length in words of each thought, for the response side"
+    ),
+    thought_min: Optional[int] = typer.Option(
+        None,
+        "--tmin",
+        "--thought-min",
+        help="The minimum length in words of each thought, for the response side"
+    ),
+    context_thought_time: Optional[int] = typer.Option(
+        None,
+        "--cttime",
+        "--context-thought-time",
+        help="Same as --thought-time but for the context side. Defaults to --thought-time if not given"
+    ),
+    context_thought_max: Optional[int] = typer.Option(
+        None,
+        "--ctmax",
+        "--context-thought-max",
+        help="Same as --thought-max but for the context side. Defaults to --thought-max if not given"
+    ),
+    context_thought_min: Optional[int] = typer.Option(
+        None,
+        "--ctmin",
+        "--context-thought-min",
+        help="Same as --thought-min but for the context side. Defaults to --thought-min if not given"
+    ),
+    system_prompt: Optional[str] = typer.Option(
+        None,
+        "--system-prompt",
+        help="System prompt content embedded in every output record"
+    ),
+    max_entries: Optional[int] = typer.Option(
+        None,
+        "-m",
+        "--max-entries",
+        help="The max amount of entries (by lines) that may exist in the dataset"
+    ),
+    offset: Optional[int] = typer.Option(
+        None,
+        "--os",
+        "--offset",
+        help="The offset by line index starting at 0 for where to start selecting lines for the dataset"
+    ),
+    distributed: Optional[bool] = typer.Option(
+        None,
+        "--distributed",
+        help="Select lines as an even distribution instead of sequentially"
+    ),
+    reverse_lines: Optional[bool] = typer.Option(
+        None,
+        "--reverse-lines",
+        help="Reverse the order in which to select lines for the dataset"
+    ),
+    redownload: Optional[bool] = typer.Option(
+        None,
+        "--redownload",
+        help="Redownload the Discord chat logs"
+    ),
     config_file: Optional[str] = typer.Option(
         str(CONFIG_PATH),
         "--config",
@@ -293,23 +384,59 @@ def dataset_sft(
     ),
 ):
     """
-    Build SFT dataset from CPT dataset
+    Download Discord channel logs (if needed) and parse them into an SFT dataset
     """
 
-    # Load and merge configuration - pass "dataset.sft" as the section to load
-    merged_config = load_and_merge_config(config_file, {}, "dataset.sft")
+    # Prepare CLI arguments for merging
+    cli_args = {
+        "discord_token": discord_token,
+        "channel_id": channel_id,
+        "user_id": user_id,
+        "discord_chat_exporter_path": exporter_path,
+        "thought_time": thought_time,
+        "thought_max": thought_max,
+        "thought_min": thought_min,
+        "system_prompt": system_prompt,
+        "max_entries": max_entries,
+        "offset": offset,
+        "distributed": distributed,
+        "reverse": reverse_lines,
+        "redownload": redownload
+    }
 
-    # Load the context-specific overrides, if any. If dataset.sft.context: is
-    # not set in config.yaml, this resolves to the exact same values as
-    # merged_config above, since load_and_merge_config's section walk simply
-    # stops at the deepest key that exists and returns what it already merged.
-    context_config = load_and_merge_config(config_file, {}, "dataset.sft.context")
+    # Load and merge configuration - pass "dataset.sft" as the section to load
+    merged_config = load_and_merge_config(config_file, cli_args, "dataset.sft")
+
+    # Load the context-specific overrides, if any. CLI flags for the context
+    # side (--context-thought-*) are merged specifically at the
+    # "dataset.sft.context" level, so a CLI flag there takes priority only
+    # for the context side. If dataset.sft.context: is not set in config.yaml
+    # and no --context-* flags are passed, this resolves to the exact same
+    # values as merged_config above.
+    context_cli_args = {
+        "thought_time": context_thought_time,
+        "thought_max": context_thought_max,
+        "thought_min": context_thought_min,
+    }
+    context_config = load_and_merge_config(config_file, context_cli_args, "dataset.sft.context")
     merged_config["context_thought_time"] = context_config["thought_time"]
     merged_config["context_thought_max"] = context_config["thought_max"]
     merged_config["context_thought_min"] = context_config["thought_min"]
 
+    # Handle Discord token fallback to environment variable
+    if not merged_config["discord_token"]:
+        merged_config["discord_token"] = os.getenv("DISCORD_BOT_TOKEN")
+
+    # Validate that required parameters are present
+    if not merged_config["channel_id"]:
+        typer.secho("Error: Channel ID must be provided via --channel_id or config.yaml", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    if not merged_config["user_id"]:
+        typer.secho("Error: User ID must be provided via --user_id or config.yaml", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
     try:
-        # Call the build_sft_dataset function
         dataset_path = build_sft_dataset(merged_config)
         typer.echo(f"SFT dataset created at: {dataset_path}")
     except NotImplementedError:
