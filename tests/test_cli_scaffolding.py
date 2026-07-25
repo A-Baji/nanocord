@@ -75,7 +75,7 @@ def test_dataset_sft_help_shows_parameter_flags():
     # Check for key flags - some may be truncated in display but should still be present
     for flag in [
         "--channel_id", "--user_id", "--discord-token", "--thought-time",
-        "--system-prompt", "--cttime"
+        "--persona-name", "--system-prompt", "--cttime"
     ]:
         assert flag in result.stdout
 

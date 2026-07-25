@@ -20,6 +20,54 @@ from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH
 # Use the global logger
 logger = global_logger
 
+DEFAULT_SYSTEM_PROMPT = (
+    "You are {persona_name}. Respond the way {persona_name} would, in their "
+    "own voice, tone, and personality, based on their own real Discord "
+    "messages."
+)
+
+
+class MissingPersonaNameError(Exception):
+    pass
+
+
+def resolve_system_prompt(persona_name: Optional[str], system_prompt_template: Optional[str] = None) -> str:
+    """
+    Validate that a persona_name is present and format a system prompt
+    template with it.
+
+    Args:
+        persona_name: The target user's persona name, embedded into the
+                      system prompt. Required.
+        system_prompt_template: An f-string-style template containing a
+                                 {persona_name} placeholder. Defaults to
+                                 DEFAULT_SYSTEM_PROMPT if not provided or
+                                 falsy.
+
+    Returns:
+        The formatted system prompt string.
+
+    Raises:
+        MissingPersonaNameError: If persona_name is not provided.
+        ValueError: If the template contains a placeholder other than
+                    {persona_name}.
+    """
+    if not persona_name:
+        raise MissingPersonaNameError(
+            "dataset.sft.persona_name is required and was not provided. "
+            "Set it in config.yaml under dataset.sft.persona_name, or pass "
+            "--persona-name."
+        )
+
+    template = system_prompt_template or DEFAULT_SYSTEM_PROMPT
+    try:
+        return template.format(persona_name=persona_name)
+    except (KeyError, IndexError) as e:
+        raise ValueError(
+            f"system_prompt template contains an unrecognized placeholder: "
+            f"{e}. Only {{persona_name}} is supported."
+        ) from e
+
 
 def parse_sft_logs(
     file: str,
@@ -152,6 +200,11 @@ def build_sft_dataset(config: Dict) -> Path:
 
     Returns:
         Path: Path to the created SFT dataset file
+
+    Raises:
+        MissingPersonaNameError: If config["persona_name"] is not provided.
+        ValueError: If config["system_prompt"] contains a placeholder other
+                    than {persona_name}.
     """
     channel_id = config.get("channel_id")
     user_id = config.get("user_id")
@@ -160,7 +213,10 @@ def build_sft_dataset(config: Dict) -> Path:
     thought_time = config.get("thought_time", 5)
     thought_max = config.get("thought_max")
     thought_min = config.get("thought_min", 6)
-    system_prompt = config.get("system_prompt", "")
+
+    persona_name = config.get("persona_name")
+    system_prompt = resolve_system_prompt(persona_name, config.get("system_prompt"))
+
     context_thought_time = config.get("context_thought_time", thought_time)
     context_thought_max = config.get("context_thought_max", thought_max)
     context_thought_min = config.get("context_thought_min", thought_min)

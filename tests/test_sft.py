@@ -5,7 +5,10 @@ import os
 
 import pytest
 
+from nanocord.dataset.sft import DEFAULT_SYSTEM_PROMPT
+from nanocord.dataset.sft import MissingPersonaNameError
 from nanocord.dataset.sft import parse_sft_logs
+from nanocord.dataset.sft import resolve_system_prompt
 from nanocord.dataset.thoughts import UserNotFoundError
 
 TARGET_USER = "target-user-id"
@@ -208,6 +211,29 @@ def test_parse_sft_logs_separate_context_params_override(tmp_path, monkeypatch):
         assert len(lines_2) == 1
     finally:
         os.unlink(log_file)
+
+
+def test_resolve_system_prompt_raises_when_persona_name_missing():
+    with pytest.raises(MissingPersonaNameError):
+        resolve_system_prompt(None)
+    with pytest.raises(MissingPersonaNameError):
+        resolve_system_prompt("")
+
+
+def test_resolve_system_prompt_uses_default_template():
+    result = resolve_system_prompt("Adib")
+    assert result == DEFAULT_SYSTEM_PROMPT.format(persona_name="Adib")
+    assert "Adib" in result
+
+
+def test_resolve_system_prompt_uses_custom_template():
+    result = resolve_system_prompt("Adib", "Speak as {persona_name} would.")
+    assert result == "Speak as Adib would."
+
+
+def test_resolve_system_prompt_raises_on_unrecognized_placeholder():
+    with pytest.raises(ValueError):
+        resolve_system_prompt("Adib", "You are {persona_name}, also known as {nickname}.")
 
 
 def test_parse_sft_logs_context_defaults_fall_back_to_response_params():

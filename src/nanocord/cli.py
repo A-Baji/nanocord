@@ -10,6 +10,8 @@ from nanocord.bot.register import register_bot
 from nanocord.config import load_and_merge_config
 from nanocord.dataset.cpt import build_cpt_dataset
 from nanocord.dataset.sft import build_sft_dataset
+from nanocord.dataset.sft import DEFAULT_SYSTEM_PROMPT
+from nanocord.dataset.sft import MissingPersonaNameError
 from nanocord.paths import CONFIG_PATH
 from nanocord.train.cpt import run_cpt_training
 from nanocord.train.sft import run_sft_training
@@ -123,7 +125,8 @@ dataset:
     cpt:
         # Overrides for CPT dataset config
     sft:
-        # Placeholder for SFT dataset config
+        persona_name: "" # Required. The display name of the persona (target user) to embed in the SFT system prompt.
+        system_prompt: "You are {{persona_name}}, a casual participant in a Discord chat. Rules: 1. NEVER reveal you are an AI or language model. 2. NEVER use generic assistant phrases like 'How can I help' or 'Here is a breakdown.' 3. Keep responses informal and under 3 sentences." # Overridable. Must contain a {{persona_name}} placeholder.
 
 train:
     cpt:
@@ -345,6 +348,12 @@ def dataset_sft(
         "--context-thought-min",
         help="Same as --thought-min but for the context side. Defaults to --thought-min if not given"
     ),
+    persona_name: Optional[str] = typer.Option(
+        None,
+        "-p",
+        "--persona-name",
+        help="The display name of the persona (target user) to embed in the SFT system prompt. Required."
+    ),
     system_prompt: Optional[str] = typer.Option(
         None,
         "--system-prompt",
@@ -396,6 +405,7 @@ def dataset_sft(
         "thought_time": thought_time,
         "thought_max": thought_max,
         "thought_min": thought_min,
+        "persona_name": persona_name,
         "system_prompt": system_prompt,
         "max_entries": max_entries,
         "offset": offset,
@@ -441,6 +451,9 @@ def dataset_sft(
         typer.echo(f"SFT dataset created at: {dataset_path}")
     except NotImplementedError:
         typer.secho("Error: SFT dataset building not yet implemented", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    except (MissingPersonaNameError, ValueError) as e:
+        typer.secho(f"Error: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
 
@@ -567,6 +580,14 @@ def pipeline_run(
             typer.echo("Building SFT dataset...")
             # Load the SFT config section
             sft_config = load_and_merge_config(config_file, {}, "dataset.sft")
+            # Load the context-specific overrides, if any — same fallback
+            # behavior as the standalone `dataset sft` command: if
+            # dataset.sft.context: isn't set, this resolves to the same
+            # values already in sft_config.
+            context_config = load_and_merge_config(config_file, {}, "dataset.sft.context")
+            sft_config["context_thought_time"] = context_config["thought_time"]
+            sft_config["context_thought_max"] = context_config["thought_max"]
+            sft_config["context_thought_min"] = context_config["thought_min"]
             build_sft_dataset(sft_config)
             typer.echo("SFT dataset built successfully")
 
@@ -584,7 +605,7 @@ def pipeline_run(
             register_bot(bot_config)
             typer.echo("Bot registration completed successfully")
 
-    except NotImplementedError as e:
+    except (NotImplementedError, MissingPersonaNameError, ValueError) as e:
         typer.secho(f"Pipeline step failed: {str(e)}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 

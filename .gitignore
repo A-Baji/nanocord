@@ -1,6 +1,6 @@
 /*.env*
 /files/
-
+/scripts/
 config.json
 
 # Byte-compiled / optimized / DLL files
