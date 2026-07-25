@@ -4,6 +4,7 @@ import platform
 import shutil
 import subprocess
 import sys
+from typing import Optional
 
 from nanocord import global_logger
 from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH
@@ -19,10 +20,22 @@ class DiscordChatExporterError(Exception):
     pass
 
 
-def resolve_discord_chat_exporter_path(prompt_for_path=False):
-    configured_path = os.getenv(DEFAULT_DCE_PATH_ENV_VAR)
+def resolve_discord_chat_exporter_path(configured_path=None, prompt_for_path=False):
+    # If a path is configured in the config file, use that
     if configured_path:
         candidate = pathlib.Path(configured_path).expanduser()
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return candidate
+        if candidate.exists():
+            return candidate
+        raise FileNotFoundError(
+            f"Configured DiscordChatExporter path does not exist or is not executable: {candidate}"
+        )
+
+    # Check environment variable as fallback
+    env_path = os.getenv(DEFAULT_DCE_PATH_ENV_VAR)
+    if env_path:
+        candidate = pathlib.Path(env_path).expanduser()
         if candidate.is_file() and os.access(candidate, os.X_OK):
             return candidate
         if candidate.exists():
@@ -76,13 +89,14 @@ def resolve_discord_chat_exporter_path(prompt_for_path=False):
     )
 
 
-def export_channel_logs(channel_id: str, bot_token: str):
+def export_channel_logs(channel_id: str, bot_token: str, discord_chat_exporter_path: Optional[str] = None):
     """
     Export Discord channel logs using DiscordChatExporter.
 
     Args:
         channel_id (str): The ID of the Discord channel to export
         bot_token (str): The Discord bot token
+        discord_chat_exporter_path (str, optional): Path to the DiscordChatExporter executable
 
     Returns:
         pathlib.Path: Path to the exported log file
@@ -97,6 +111,7 @@ def export_channel_logs(channel_id: str, bot_token: str):
 
     try:
         DiscordChatExporter = resolve_discord_chat_exporter_path(
+            configured_path=discord_chat_exporter_path,
             prompt_for_path=True
         )
     except FileNotFoundError as exc:
