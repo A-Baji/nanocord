@@ -2,8 +2,6 @@
 Dataset creation functions for CPT (Continued Pre-Training) datasets.
 """
 
-from datetime import datetime
-from datetime import timedelta
 import json
 from os import path
 from pathlib import Path
@@ -12,8 +10,7 @@ from typing import Optional
 
 from nanocord import global_logger
 from nanocord.dataset.discord_export import export_channel_logs
-from nanocord.dataset.thoughts import build_thought
-from nanocord.dataset.thoughts import cleanup_string
+from nanocord.dataset.thoughts import group_into_thoughts
 from nanocord.dataset.thoughts import UserNotFoundError
 from nanocord.dataset.thoughts import validate_thought
 from nanocord.paths import DATASET_PATH
@@ -76,29 +73,9 @@ def parse_logs(
         with open(dataset_file_path, "w", encoding="utf-8") as dataset:
             thought_max = 999999 if not thought_max else thought_max
 
-            thought = build_thought("", messages[0])
-            for i, msg in enumerate(messages[1::]):
-                if msg["content"]:
-                    # Clean up the message content before processing
-                    cleaned_content = cleanup_string(msg["content"])
-                    msg["content"] = cleaned_content
-
-                    prev_timestamp = datetime.fromisoformat(messages[i]["timestamp"])
-                    curr_timestamp = datetime.fromisoformat(msg["timestamp"])
-                    differentiation = (curr_timestamp - prev_timestamp) / timedelta(
-                        milliseconds=1
-                    )
-                    if differentiation > thought_time * 1000:
-                        # Validate and add the completed thought to dataset
-                        if validate_thought(thought, thought_min, thought_max):
-                            add_to_dataset(thought, dataset)
-                        thought = build_thought("", msg)
-                    else:
-                        thought = build_thought(thought, msg)
-
-            # Add the final thought
-            if validate_thought(thought, thought_min, thought_max):
-                add_to_dataset(thought, dataset)
+            for thought in group_into_thoughts(messages, thought_time):
+                if validate_thought(thought["text"], thought_min, thought_max):
+                    add_to_dataset(thought["text"], dataset)
 
     if path.getsize(dataset_file_path) == 0:
         logger.warning(
