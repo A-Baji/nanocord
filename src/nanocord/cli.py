@@ -74,7 +74,7 @@ def init(
     Initialize NanoCord by creating a default configuration file.
 
     This command creates a config.yaml file in the user's data directory
-    and prompts for the Discord bot token.
+    and prompts for the Discord bot token and DiscordChatExporter path.
     """
     # Create config directory if it doesn't exist
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -93,6 +93,13 @@ def init(
         show_default=False
     )
 
+    # Prompt for DiscordChatExporter path
+    discord_chat_exporter_path = typer.prompt(
+        "Enter the path to DiscordChatExporter.Cli executable (optional - press Enter to skip)",
+        default="",
+        show_default=False
+    )
+
     # Create default config content
     default_config = f"""# NanoCord Configuration File
 # This file contains default settings for the nanocord CLI tool.
@@ -104,6 +111,7 @@ dataset:
     channel_id: ""
     user_id: ""
     discord_token: "{discord_token}" # Optional here, falls back to DISCORD_BOT_TOKEN env var if left empty
+    discord_chat_exporter_path: "{discord_chat_exporter_path}" # Path to DiscordChatExporter.Cli executable
     thought_time: 5
     thought_min: 6
     thought_max: null
@@ -136,8 +144,15 @@ bot:
         typer.echo("Discord bot token saved to configuration.")
     else:
         typer.echo("No Discord bot token provided. You can set it later via:")
-        typer.echo("  - Environment variable: DISCORD_BOT_TOKEN")
-        typer.echo("  - Configuration file: config.yaml")
+        typer.echo(f"  - Environment variable: DISCORD_BOT_TOKEN")
+        typer.echo(f"  - Configuration file: {CONFIG_PATH}")
+
+    if discord_chat_exporter_path:
+        typer.echo("DiscordChatExporter path saved to configuration.")
+    else:
+        typer.echo("No DiscordChatExporter path provided. You can set it later via:")
+        typer.echo(f"  - Environment variable: DISCORD_CHAT_EXPORTER_PATH")
+        typer.echo(f"  - Configuration file: {CONFIG_PATH}")
 
 
 @dataset_app.command("cpt")
@@ -159,6 +174,11 @@ def dataset_cpt(
         "-u",
         "--user_id",
         help="The ID of the Discord user you want to use"
+    ),
+    exporter_path: Optional[str] = typer.Option(
+        None,
+        "--exporter-path",
+        help="Path to the DiscordChatExporter.Cli executable"
     ),
     thought_time: Optional[int] = typer.Option(
         None,
@@ -220,6 +240,7 @@ def dataset_cpt(
         "discord_token": discord_token,
         "channel_id": channel_id,
         "user_id": user_id,
+        "discord_chat_exporter_path": exporter_path,
         "thought_time": thought_time,
         "thought_max": thought_max,
         "thought_min": thought_min,
@@ -251,6 +272,7 @@ def dataset_cpt(
         channel_id=merged_config["channel_id"],
         user_id=merged_config["user_id"],
         bot_token=merged_config["discord_token"],
+        discord_chat_exporter_path=merged_config["discord_chat_exporter_path"],
         thought_time=merged_config["thought_time"],
         thought_max=merged_config["thought_max"],
         thought_min=merged_config["thought_min"],
@@ -386,6 +408,7 @@ def pipeline_run(
                 channel_id=merged_config["channel_id"],
                 user_id=merged_config["user_id"],
                 bot_token=merged_config["discord_token"],
+                discord_chat_exporter_path=merged_config["discord_chat_exporter_path"],
                 thought_time=merged_config["thought_time"],
                 thought_max=merged_config["thought_max"],
                 thought_min=merged_config["thought_min"],

@@ -34,6 +34,7 @@ def load_and_merge_config(yaml_path: Optional[str], cli_args: Dict[str, Any], se
         "channel_id": None,
         "user_id": None,
         "discord_token": None,
+        "discord_chat_exporter_path": None,
         "thought_time": 5,
         "thought_max": None,
         "thought_min": 6,

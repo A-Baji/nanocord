@@ -147,6 +147,7 @@ def build_cpt_dataset(
     channel_id: str,
     user_id: str,
     bot_token: str,
+    discord_chat_exporter_path: Optional[str] = None,
     thought_time: int = 10,
     thought_max: Optional[int] = None,
     thought_min: int = 4,
@@ -191,7 +192,7 @@ def build_cpt_dataset(
     if not full_logs_path.exists() or redownload:
         logger.info("Exporting chat logs using DiscordChatExporter...")
         try:
-            export_channel_logs(channel_id, bot_token)
+            export_channel_logs(channel_id, bot_token, discord_chat_exporter_path)
         except Exception as e:
             logger.error(f"Failed to export chat logs: {e}")
             raise
