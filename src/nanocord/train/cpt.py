@@ -85,15 +85,15 @@ def resolve_lora_config(config: Dict) -> Dict:
     seed = config.get("seed", 3407)
 
     return {
-        "target_modules": LORA_TARGET_MODULES,
         "r": lora_r,
-        "alpha": lora_alpha,
-        "dropout": lora_dropout,
+        "target_modules": LORA_TARGET_MODULES,
+        "lora_alpha": lora_alpha,
+        "lora_dropout": lora_dropout,
         "bias": "none",
         "use_gradient_checkpointing": "unsloth",
         "use_rslora": False,
         "loftq_config": None,
-        "seed": seed,
+        "random_state": seed,
     }
 
 
@@ -164,6 +164,7 @@ def resolve_training_args(config: Dict, output_dir: Path) -> Dict:
 
     return {
         "auto_find_batch_size": True,
+        "per_device_train_batch_size": per_device_train_batch_size,
         "gradient_accumulation_steps": gradient_accumulation_steps,
         "lr_scheduler_type": "linear",
         "optim": "adamw_8bit",

@@ -35,25 +35,25 @@ def test_resolve_lora_config():
     # Test default config
     result = resolve_lora_config({})
     assert result["r"] == 16
-    assert result["alpha"] == 16
-    assert result["dropout"] == 0
+    assert result["lora_alpha"] == 16
+    assert result["lora_dropout"] == 0
     assert result["target_modules"] == LORA_TARGET_MODULES
     assert result["bias"] == "none"
     assert result["use_gradient_checkpointing"] == "unsloth"
-    assert result["seed"] == 3407
+    assert result["random_state"] == 3407
     assert result["use_rslora"] is False
     assert result["loftq_config"] is None
 
     # Test with custom lora_r and seed
     result = resolve_lora_config({"lora_r": 32, "seed": 42})
     assert result["r"] == 32
-    assert result["alpha"] == 32  # Should default to same as r
-    assert result["seed"] == 42
+    assert result["lora_alpha"] == 32  # Should default to same as r
+    assert result["random_state"] == 42
 
     # Test with explicit lora_alpha
     result = resolve_lora_config({"lora_r": 32, "lora_alpha": 64})
     assert result["r"] == 32
-    assert result["alpha"] == 64
+    assert result["lora_alpha"] == 64
 
 
 def test_compute_gradient_accumulation_steps():
@@ -73,6 +73,7 @@ def test_resolve_training_args():
     # Test default config
     result = resolve_training_args({}, output_dir)
     assert result["auto_find_batch_size"] is True
+    assert result["per_device_train_batch_size"] == 2  # NEW — was missing entirely before this fix
     assert result["gradient_accumulation_steps"] == 8  # 16 // 2 default
     assert result["num_train_epochs"] == 3
     assert result["learning_rate"] == 0.0002
@@ -93,6 +94,7 @@ def test_resolve_training_args():
         output_dir
     )
     assert result["num_train_epochs"] == 5
+    assert result["per_device_train_batch_size"] == 4  # NEW
     assert result["gradient_accumulation_steps"] == 8  # 32 // 4
 
 
