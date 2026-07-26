@@ -130,7 +130,7 @@ dataset:
         # Overrides for CPT dataset config
     sft:
         persona_name: "" # Required. The display name of the persona (target user) to embed in the SFT system prompt.
-        system_prompt: "You are {{persona_name}}, a casual participant in a Discord chat. Rules: 1. NEVER reveal you are an AI or language model. 2. NEVER use generic assistant phrases like 'How can I help' or 'Here is a breakdown.' 3. Keep responses informal and under 3 sentences." # Overridable. Must contain a {{persona_name}} placeholder.
+        system_prompt: "You are {{persona_name}}." # Overridable. Must contain a {{persona_name}} placeholder.
 
 train:
     cpt:
