@@ -21,3 +21,7 @@ DISCORD_CHAT_EXPORTER_LOGS_PATH = RAW_DATA_DIR
 
 # Dataset path (for generated datasets)
 DATASET_PATH = PROCESSED_DATA_DIR
+
+# Model checkpoint path (for LoRA adapters saved by train stages)
+MODEL_PATH = DATA_DIR / "models"
+MODEL_PATH.mkdir(parents=True, exist_ok=True)

@@ -107,11 +107,15 @@ def init(
 # This file contains default settings for the nanocord CLI tool.
 # Values can be overridden by command-line arguments.
 
+# Shared across every section below (dataset.cpt, dataset.sft, train.cpt,
+# train.sft) via config inheritance - identifies which Discord user/
+# channel this persona is built from.
+channel_id: ""
+user_id: ""
+
 dataset:
     # Params here are shared by both dataset.cpt and dataset.sft below -
     # redeclare a key inside either one to override it just for that mode.
-    channel_id: ""
-    user_id: ""
     discord_token: "{discord_token}" # Optional here, falls back to DISCORD_BOT_TOKEN env var if left empty
     discord_chat_exporter_path: "{discord_chat_exporter_path}" # Path to DiscordChatExporter.Cli executable
     thought_time: 5
@@ -130,7 +134,22 @@ dataset:
 
 train:
     cpt:
-        # Placeholder for CPT training config
+        base_model: "smollm3-3b" # One of: smollm3-3b, qwen3-4b, qwen3-1.7b, llama-3.2-3b
+        load_in_4bit: true
+        max_seq_length: 2048
+        lora_r: 16
+        lora_alpha: 16
+        lora_dropout: 0
+        learning_rate: 0.0002
+        effective_batch_size: 16
+        per_device_train_batch_size: 2
+        num_train_epochs: 3
+        eval_split: 0.05
+        early_stopping_patience: 3
+        weight_decay: 0.01
+        warmup_ratio: 0.05
+        packing: true
+        seed: 3407
     sft:
         # Placeholder for SFT training config
 
