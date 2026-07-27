@@ -28,12 +28,13 @@ dev = [
     "pytest-cov>=4.0.0",
 ]
 
-# torch/bitsandbytes intentionally omitted - installed by Unsloth's own
-# hardware-aware installer (unsloth.ai/get-started), not pinned here.
+# torch, unsloth, unsloth_zoo, xformers, bitsandbytes intentionally omitted -
+# install manually via Unsloth's hardware-aware installer (unsloth.ai/get-started)
+# BEFORE running `pip install -e .[train]`.
 train = [
-    "unsloth",
-    "transformers>=4.45",
-    "trl>=0.12",
-    "accelerate>=1.0",
-    "datasets>=3.0",
+    "datasets",
+    "accelerate",
+    "transformers",
+    "trl",
+    "peft",
 ]
