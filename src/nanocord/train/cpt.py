@@ -26,7 +26,7 @@ BASE_MODEL_HF_IDS = {
     BaseModel.QWEN2_5_7B: "unsloth/Qwen2.5-7B",
 }
 
-# Fixed — LoRA is applied to all seven major linear layers (attention + MLP).
+# Fixed - LoRA is applied to all seven major linear layers (attention + MLP).
 # Not config-driven; do not expose this as a config key.
 LORA_TARGET_MODULES = [
     "q_proj", "k_proj", "v_proj", "o_proj",
@@ -113,7 +113,7 @@ def compute_gradient_accumulation_steps(effective_batch_size: int, per_device_tr
         Note: if HF's auto_find_batch_size backs the batch size down at
         train time due to OOM, gradient_accumulation_steps stays fixed at
         the value this function returns (computed from the starting
-        per_device_train_batch_size) — the realized effective batch size
+        per_device_train_batch_size) - the realized effective batch size
         simply shrinks along with it. This is standard HF Trainer behavior,
         not a bug to work around.
     """
@@ -214,7 +214,7 @@ def run_cpt_training(config: Dict) -> Path:
         FileNotFoundError: if the expected CPT dataset JSONL file
                             (nanocord.paths.DATASET_PATH /
                             f"{user_id}_{channel_id}_cpt_data_set.jsonl")
-                            does not exist — raise with a clear message
+                            does not exist - raise with a clear message
                             telling the user to run `dataset cpt` first.
                             Check this BEFORE importing/loading unsloth or
                             any model, so this error path never triggers a

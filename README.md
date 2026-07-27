@@ -68,11 +68,11 @@ nanocord config set dataset.discord_token "your-bot-token-here"
 
 The complete pipeline consists of 5 stages:
 
-1. `dataset cpt` — scrape Discord channel logs, group messages into "thoughts," write CPT dataset
-2. `train cpt` — LoRA continued pretraining (unsupervised) on a small base model
-3. `dataset sft` — extract (context → reply) pairs from DiscordChatExporter's reply-reference metadata
-4. `train sft` — LoRA fine-tune on top of the CPT checkpoint using the SFT dataset
-5. `bot register` — export to GGUF, serve via Ollama, register as a Discord slash command
+1. `dataset cpt` - scrape Discord channel logs, group messages into "thoughts," write CPT dataset
+2. `train cpt` - LoRA continued pretraining (unsupervised) on a small base model
+3. `dataset sft` - extract (context → reply) pairs from DiscordChatExporter's reply-reference metadata
+4. `train sft` - LoRA fine-tune on top of the CPT checkpoint using the SFT dataset
+5. `bot register` - export to GGUF, serve via Ollama, register as a Discord slash command
 
 Use `--skip-*` flags with the pipeline command to run partial stages:
 

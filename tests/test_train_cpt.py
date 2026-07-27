@@ -74,7 +74,7 @@ def test_resolve_training_args():
     # Test default config
     result = resolve_training_args({}, output_dir)
     assert result["auto_find_batch_size"] is True
-    assert result["per_device_train_batch_size"] == 2  # NEW — was missing entirely before this fix
+    assert result["per_device_train_batch_size"] == 2  # NEW - was missing entirely before this fix
     assert result["gradient_accumulation_steps"] == 8  # 16 // 2 default
     assert result["num_train_epochs"] == 3
     assert result["learning_rate"] == 0.0002

@@ -28,7 +28,7 @@ dev = [
     "pytest-cov>=4.0.0",
 ]
 
-# torch/bitsandbytes intentionally omitted — installed by Unsloth's own
+# torch/bitsandbytes intentionally omitted - installed by Unsloth's own
 # hardware-aware installer (unsloth.ai/get-started), not pinned here.
 train = [
     "unsloth",

@@ -86,7 +86,7 @@ def test_group_into_thoughts_splits_on_time_gap():
 
 
 def test_group_into_thoughts_reply_always_starts_new_thought():
-    # Reply arrives within thought_time of the previous message — must still
+    # Reply arrives within thought_time of the previous message - must still
     # break the thread rather than merging.
     messages = [
         {"id": "1", "content": "the last message", "timestamp": "2024-06-28T19:24:14.998-05:00"},

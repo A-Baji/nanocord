@@ -45,14 +45,14 @@ def build_thought(thought: str, msg: dict) -> str:
 
 def group_into_thoughts(messages: list, thought_time: int) -> list:
     """
-    Group a chronologically-ordered list of Discord messages into "thoughts" —
+    Group a chronologically-ordered list of Discord messages into "thoughts" -
     runs of consecutive messages considered part of the same idea.
 
     A new thought starts whenever any of the following is true for the
     current message:
       - it is the first message in `messages`
       - more than `thought_time` seconds have passed since the previous message
-      - the message is itself a reply (has a "reference" key) — a reply always
+      - the message is itself a reply (has a "reference" key) - a reply always
         starts a new thought and is always that thought's first message,
         regardless of the time gap from the previous message
 

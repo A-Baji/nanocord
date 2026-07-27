@@ -154,7 +154,7 @@ train:
     cpt:
         # Overrides for CPT training config
     sft:
-        num_train_epochs: 5 # Override — more epochs to firmly cement conversational voice on top of the shared default of 3
+        num_train_epochs: 5 # Override - more epochs to firmly cement conversational voice on top of the shared default of 3
 
 bot:
     # Placeholder for bot config
@@ -602,7 +602,7 @@ def pipeline_run(
             typer.echo("Building SFT dataset...")
             # Load the SFT config section
             sft_config = load_and_merge_config(config_file, {}, "dataset.sft")
-            # Load the context-specific overrides, if any — same fallback
+            # Load the context-specific overrides, if any - same fallback
             # behavior as the standalone `dataset sft` command: if
             # dataset.sft.context: isn't set, this resolves to the same
             # values already in sft_config.
