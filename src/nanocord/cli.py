@@ -153,6 +153,7 @@ train:
     seed: 3407
     cpt:
         # Overrides for CPT training config
+        # vram_safe_max_seq_length: 1024  # uncomment + lower per_device_train_batch_size/effective_batch_size under train: if hitting VRAM OOM
     sft:
         num_train_epochs: 5 # Override - more epochs to firmly cement conversational voice on top of the shared default of 3
 

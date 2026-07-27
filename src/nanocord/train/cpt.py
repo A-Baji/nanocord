@@ -208,7 +208,7 @@ def run_cpt_training(config: Dict) -> Path:
 
     Raises:
         MissingDatasetIdentifiersError: if channel_id or user_id missing
-                                          from config.
+                                        from config.
         ValueError: if config["base_model"] is set but not a recognized
                     BaseModel value.
         FileNotFoundError: if the expected CPT dataset JSONL file
@@ -249,7 +249,16 @@ def run_cpt_training(config: Dict) -> Path:
         load_in_4bit=config.get("load_in_4bit", True),
     )
 
-    model = FastLanguageModel.get_peft_model(model, **resolve_lora_config(config))
+    # Force disable the fused cross-entropy module causing the scratchpad OOM
+    if hasattr(model, "config"):
+        model.config.use_fused_ce = False
+
+    # Enforce Unsloth's optimized gradient checkpointing 
+    # This prevents storing all intermediate activations and saves massive VRAM.
+    lora_kwargs = resolve_lora_config(config)
+    lora_kwargs["use_gradient_checkpointing"] = lora_kwargs.get("use_gradient_checkpointing", "unsloth")
+    
+    model = FastLanguageModel.get_peft_model(model, **lora_kwargs)
 
     from datasets import load_dataset
 
@@ -259,18 +268,35 @@ def run_cpt_training(config: Dict) -> Path:
 
     output_dir = MODEL_PATH / f"{user_id}_{channel_id}_cpt_lora"
 
-    from transformers import TrainingArguments, EarlyStoppingCallback
-    from trl import SFTTrainer
+    from transformers import EarlyStoppingCallback
+    from trl import SFTTrainer, SFTConfig
+
+    # Grab the resolved base dictionary
+    training_args_dict = resolve_training_args(config, output_dir)
+
+    # vram_safe_max_seq_length, if set, clamps max_seq_length down for VRAM-constrained
+    # hardware without silently overriding config["max_seq_length"] itself. Unset (None)
+    # means use config["max_seq_length"] (default 2048) unchanged.
+    vram_safe_max_seq_length = config.get("vram_safe_max_seq_length")
+    effective_max_seq_length = (
+        min(config.get("max_seq_length", 2048), vram_safe_max_seq_length)
+        if vram_safe_max_seq_length
+        else config.get("max_seq_length", 2048)
+    )
+
+    training_args_dict.update({
+        "dataset_text_field": "text",
+        "max_seq_length": effective_max_seq_length,
+        "packing": config.get("packing", True),
+        "optim": "paged_adamw_8bit",  # VRAM-safe optimizer; overrides resolve_training_args' adamw_8bit default
+    })
 
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        dataset_text_field="text",
-        max_seq_length=config.get("max_seq_length", 2048),
-        packing=config.get("packing", True),
-        args=TrainingArguments(**resolve_training_args(config, output_dir)),
+        args=SFTConfig(**training_args_dict),
         callbacks=[EarlyStoppingCallback(early_stopping_patience=config.get("early_stopping_patience", 3))],
     )
 
