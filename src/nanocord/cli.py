@@ -133,25 +133,28 @@ dataset:
         system_prompt: "You are {{persona_name}}." # Overridable. Must contain a {{persona_name}} placeholder.
 
 train:
+    # Params here are shared by both train.cpt and train.sft below -
+    # redeclare a key inside either one to override it just for that mode.
+    base_model: "qwen2.5-7b" # One of: smollm3-3b, qwen3-4b, qwen3-1.7b, llama-3.2-3b, qwen2.5-7b
+    load_in_4bit: true
+    max_seq_length: 2048
+    lora_r: 32
+    lora_alpha: 64
+    lora_dropout: 0
+    learning_rate: 0.0002
+    effective_batch_size: 16
+    per_device_train_batch_size: 2
+    num_train_epochs: 3
+    eval_split: 0.05
+    early_stopping_patience: 3
+    weight_decay: 0.01
+    warmup_ratio: 0.05
+    packing: true
+    seed: 3407
     cpt:
-        base_model: "smollm3-3b" # One of: smollm3-3b, qwen3-4b, qwen3-1.7b, llama-3.2-3b
-        load_in_4bit: true
-        max_seq_length: 2048
-        lora_r: 16
-        lora_alpha: 16
-        lora_dropout: 0
-        learning_rate: 0.0002
-        effective_batch_size: 16
-        per_device_train_batch_size: 2
-        num_train_epochs: 3
-        eval_split: 0.05
-        early_stopping_patience: 3
-        weight_decay: 0.01
-        warmup_ratio: 0.05
-        packing: true
-        seed: 3407
+        # Overrides for CPT training config
     sft:
-        # Placeholder for SFT training config
+        num_train_epochs: 5 # Override — more epochs to firmly cement conversational voice on top of the shared default of 3
 
 bot:
     # Placeholder for bot config

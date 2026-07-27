@@ -25,6 +25,7 @@ def test_resolve_base_model():
 
     # Test valid model name
     assert resolve_base_model("qwen3-4b") == "unsloth/Qwen3-4B-Base"
+    assert resolve_base_model("qwen2.5-7b") == "unsloth/Qwen2.5-7B"
 
     # Test invalid model name
     with pytest.raises(ValueError):

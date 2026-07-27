@@ -12,9 +12,10 @@ class BaseModel(str, Enum):
     QWEN3_4B = "qwen3-4b"
     QWEN3_1_7B = "qwen3-1.7b"
     LLAMA_3_2_3B = "llama-3.2-3b"
+    QWEN2_5_7B = "qwen2.5-7b"
 
 
-DEFAULT_BASE_MODEL = BaseModel.SMOLLM3_3B
+DEFAULT_BASE_MODEL = BaseModel.QWEN2_5_7B
 
 # Maps our enum values to the actual Unsloth/HF repo ids to load.
 BASE_MODEL_HF_IDS = {
@@ -22,6 +23,7 @@ BASE_MODEL_HF_IDS = {
     BaseModel.QWEN3_4B: "unsloth/Qwen3-4B-Base",
     BaseModel.QWEN3_1_7B: "unsloth/Qwen3-1.7B-Base",
     BaseModel.LLAMA_3_2_3B: "unsloth/Llama-3.2-3B",
+    BaseModel.QWEN2_5_7B: "unsloth/Qwen2.5-7B",
 }
 
 # Fixed — LoRA is applied to all seven major linear layers (attention + MLP).
