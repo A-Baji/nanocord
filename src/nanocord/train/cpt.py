@@ -149,6 +149,13 @@ def resolve_training_args(config: Dict, output_dir: Path) -> Dict:
       - report_to = "none"
       - logging_steps = 10
 
+    Note: config["vram_safe_max_seq_length"] (default: None) is NOT read by
+    this function. It's read directly by run_cpt_training after this
+    function returns, to optionally clamp max_seq_length down for
+    VRAM-constrained hardware without mutating config["max_seq_length"]
+    itself. Documented here only so the full CPT training config surface
+    is discoverable from one place.
+
     Returns:
         Dict of kwargs ready to unpack into transformers.TrainingArguments.
     """
