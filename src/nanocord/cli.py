@@ -498,9 +498,12 @@ def train_cpt(
         # Call the run_cpt_training function
         checkpoint_path = run_cpt_training(merged_config)
         typer.echo(f"CPT training completed. Checkpoint saved at: {checkpoint_path}")
-    except NotImplementedError:
+    except NotImplementedError as e:
         typer.secho("Error: CPT training not yet implemented", fg=typer.colors.RED)
         raise typer.Exit(code=1)
+    except Exception as e:
+        # Re-raise any other exceptions for better debugging
+        raise e
 
 
 @train_app.command("sft")
@@ -522,9 +525,12 @@ def train_sft(
         # Call the run_sft_training function
         model_path = run_sft_training(merged_config)
         typer.echo(f"SFT training completed. Model saved at: {model_path}")
-    except NotImplementedError:
+    except NotImplementedError as e:
         typer.secho("Error: SFT training not yet implemented", fg=typer.colors.RED)
         raise typer.Exit(code=1)
+    except Exception as e:
+        # Re-raise any other exceptions for better debugging
+        raise e
 
 
 @bot_app.command("register")
