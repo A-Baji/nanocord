@@ -156,6 +156,9 @@ train:
         # vram_safe_max_seq_length: 1024  # uncomment + lower per_device_train_batch_size/effective_batch_size under train: if hitting VRAM OOM
     sft:
         num_train_epochs: 5 # Override - more epochs to firmly cement conversational voice on top of the shared default of 3
+        lora_dropout: 0.05 # Override - light regularization against overfitting on a small SFT dataset over 5 epochs, unlike CPT's 0 dropout
+        eval_split: 0.1 # Override - a 5% eval slice is noisy for early-stopping decisions on a small personal-chat SFT dataset
+        neftune_noise_alpha: 5 # NEFTune - adds noise to embeddings during SFT training, improves output quality/diversity on small instruction datasets; not used for CPT
 
 bot:
     # Placeholder for bot config

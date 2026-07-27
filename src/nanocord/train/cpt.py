@@ -1,6 +1,8 @@
 """
 Continued Pretraining (CPT) training functions.
 """
+import gc
+import torch
 
 from enum import Enum
 from pathlib import Path
@@ -26,11 +28,13 @@ BASE_MODEL_HF_IDS = {
     BaseModel.QWEN2_5_7B: "unsloth/Qwen2.5-7B",
 }
 
-# Fixed - LoRA is applied to all seven major linear layers (attention + MLP).
+# Fixed - LoRA is applied to all seven major linear layers (attention + MLP),
+# plus embed_tokens and lm_head for continued pretraining.
 # Not config-driven; do not expose this as a config key.
 LORA_TARGET_MODULES = [
     "q_proj", "k_proj", "v_proj", "o_proj",
     "gate_proj", "up_proj", "down_proj",
+    "embed_tokens", "lm_head",
 ]
 
 
@@ -86,6 +90,13 @@ def resolve_lora_config(config: Dict) -> Dict:
     lora_dropout = config.get("lora_dropout", 0)
     seed = config.get("seed", 3407)
 
+    # For continued pretraining, we also need to train embed_tokens and lm_head
+    # with a lower learning rate. These special modules must be saved separately,
+    # so we set modules_to_save to include them.
+    modules_to_save = []
+    if "embed_tokens" in LORA_TARGET_MODULES or "lm_head" in LORA_TARGET_MODULES:
+        modules_to_save = ["lm_head", "embed_tokens"]
+
     return {
         "r": lora_r,
         "target_modules": LORA_TARGET_MODULES,
@@ -96,6 +107,7 @@ def resolve_lora_config(config: Dict) -> Dict:
         "use_rslora": False,
         "loftq_config": None,
         "random_state": seed,
+        "modules_to_save": modules_to_save,
     }
 
 
@@ -133,6 +145,7 @@ def resolve_training_args(config: Dict, output_dir: Path) -> Dict:
       - warmup_ratio (default 0.05)
       - weight_decay (default 0.01)
       - seed (default 3407)
+      - neftune_noise_alpha (default None)
 
     Must set:
       - auto_find_batch_size = True
@@ -160,20 +173,23 @@ def resolve_training_args(config: Dict, output_dir: Path) -> Dict:
         Dict of kwargs ready to unpack into transformers.TrainingArguments.
     """
     effective_batch_size = config.get("effective_batch_size", 16)
-    per_device_train_batch_size = config.get("per_device_train_batch_size", 2)
+    per_device_train_batch_size = config.get("per_device_train_batch_size", 1)
     num_train_epochs = config.get("num_train_epochs", 3)
     learning_rate = config.get("learning_rate", 2e-4)
     warmup_ratio = config.get("warmup_ratio", 0.05)
     weight_decay = config.get("weight_decay", 0.01)
     seed = config.get("seed", 3407)
+    neftune_noise_alpha = config.get("neftune_noise_alpha")
 
     gradient_accumulation_steps = compute_gradient_accumulation_steps(
         effective_batch_size, per_device_train_batch_size
     )
 
-    return {
+    result = {
         "auto_find_batch_size": True,
         "per_device_train_batch_size": per_device_train_batch_size,
+        "per_device_eval_batch_size": 1,      # Prevents HF default (8) from OOMing step 50 eval
+        "eval_accumulation_steps": 1,          # Streams eval tensors to CPU memory
         "gradient_accumulation_steps": gradient_accumulation_steps,
         "lr_scheduler_type": "linear",
         "optim": "adamw_8bit",
@@ -193,6 +209,33 @@ def resolve_training_args(config: Dict, output_dir: Path) -> Dict:
         "weight_decay": weight_decay,
         "seed": seed,
     }
+
+    # Only include neftune_noise_alpha if it's not None
+    if neftune_noise_alpha is not None:
+        result["neftune_noise_alpha"] = neftune_noise_alpha
+
+    return result
+
+
+def resolve_embedding_learning_rate(config: Dict) -> float:
+    """
+    Resolve the embedding learning rate for continued pretraining.
+
+    For continued pretraining, we need to train embed_tokens and lm_head
+    with a lower learning rate than the rest of the LoRA layers to avoid
+    destabilizing training. These embeddings carry vocabulary-level style
+    signal that needs to be learned carefully.
+
+    Defaults to config.get("learning_rate", 2e-4) / 10, which is a common
+    ratio for embedding learning rates in LoRA setups.
+
+    Args:
+        config: The merged configuration dict
+
+    Returns:
+        The embedding learning rate as a float
+    """
+    return config.get("embedding_learning_rate", config.get("learning_rate", 2e-4) / 10)
 
 
 def run_cpt_training(config: Dict) -> Path:
@@ -245,7 +288,6 @@ def run_cpt_training(config: Dict) -> Path:
             "Please run `dataset cpt` first to generate the CPT dataset."
         )
 
-    # Import unsloth-related libraries only when needed
     from unsloth import FastLanguageModel
 
     hf_repo_id = resolve_base_model(config.get("base_model"))
@@ -256,15 +298,9 @@ def run_cpt_training(config: Dict) -> Path:
         load_in_4bit=config.get("load_in_4bit", True),
     )
 
-    # Force disable the fused cross-entropy module causing the scratchpad OOM
-    if hasattr(model, "config"):
-        model.config.use_fused_ce = False
-
-    # Enforce Unsloth's optimized gradient checkpointing 
-    # This prevents storing all intermediate activations and saves massive VRAM.
     lora_kwargs = resolve_lora_config(config)
     lora_kwargs["use_gradient_checkpointing"] = lora_kwargs.get("use_gradient_checkpointing", "unsloth")
-    
+
     model = FastLanguageModel.get_peft_model(model, **lora_kwargs)
 
     from datasets import load_dataset
@@ -276,14 +312,10 @@ def run_cpt_training(config: Dict) -> Path:
     output_dir = MODEL_PATH / f"{user_id}_{channel_id}_cpt_lora"
 
     from transformers import EarlyStoppingCallback
-    from trl import SFTTrainer, SFTConfig
+    from unsloth import UnslothTrainer, UnslothTrainingArguments
 
-    # Grab the resolved base dictionary
     training_args_dict = resolve_training_args(config, output_dir)
 
-    # vram_safe_max_seq_length, if set, clamps max_seq_length down for VRAM-constrained
-    # hardware without silently overriding config["max_seq_length"] itself. Unset (None)
-    # means use config["max_seq_length"] (default 2048) unchanged.
     vram_safe_max_seq_length = config.get("vram_safe_max_seq_length")
     effective_max_seq_length = (
         min(config.get("max_seq_length", 2048), vram_safe_max_seq_length)
@@ -295,15 +327,20 @@ def run_cpt_training(config: Dict) -> Path:
         "dataset_text_field": "text",
         "max_seq_length": effective_max_seq_length,
         "packing": config.get("packing", True),
-        "optim": "paged_adamw_8bit",  # VRAM-safe optimizer; overrides resolve_training_args' adamw_8bit default
+        "optim": "paged_adamw_8bit",
+        "embedding_learning_rate": resolve_embedding_learning_rate(config),
     })
 
-    trainer = SFTTrainer(
+    # Clear cached PyTorch allocations before trainer initialization
+    gc.collect()
+    torch.cuda.empty_cache()
+
+    trainer = UnslothTrainer(
         model=model,
         tokenizer=tokenizer,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        args=SFTConfig(**training_args_dict),
+        args=UnslothTrainingArguments(**training_args_dict),
         callbacks=[EarlyStoppingCallback(early_stopping_patience=config.get("early_stopping_patience", 3))],
     )
 

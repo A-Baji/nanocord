@@ -32,9 +32,12 @@ dev = [
 # install manually via Unsloth's hardware-aware installer (unsloth.ai/get-started)
 # BEFORE running `pip install -e .[train]`.
 train = [
-    "datasets",
-    "accelerate",
-    "transformers",
-    "trl",
-    "peft",
+    # torch, unsloth, unsloth_zoo, xformers, bitsandbytes intentionally omitted -
+    # install manually via Unsloth's hardware-aware installer (unsloth.ai/get-started)
+    # BEFORE running `pip install -e .[train]`.
+    "datasets>=3.4.1,<4.4.0",
+    "accelerate>=0.34.1",
+    "transformers>=4.51.3,<=4.57.6",
+    "trl>=0.18.2,<=0.24.0",
+    "peft>=0.18.0",
 ]
