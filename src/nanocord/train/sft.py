@@ -164,12 +164,12 @@ def run_sft_training(config: Dict) -> Path:
     gc.collect()
     torch.cuda.empty_cache()
 
-    trainer = SFTTrainer(
+    trainer = UnslothTrainer(
         model=model,
         tokenizer=tokenizer,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        args=SFTConfig(**training_args_dict),
+        args=UnslothTrainingArguments(**training_args_dict),
         callbacks=[EarlyStoppingCallback(early_stopping_patience=config.get("early_stopping_patience", 3))],
     )
 
