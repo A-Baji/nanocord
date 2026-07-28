@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Dict, Optional, Tuple
 import torch
 
+from nanocord.paths import resolve_output_dir
 from nanocord.train.cpt import (
     BaseModel,
     DEFAULT_BASE_MODEL,
