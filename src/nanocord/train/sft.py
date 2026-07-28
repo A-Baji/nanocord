@@ -132,7 +132,7 @@ def run_sft_training(config: Dict) -> Path:
     from unsloth.chat_templates import get_chat_template
     chat_template_name, instruction_part, response_part = resolve_chat_template(config.get("base_model"))
     tokenizer = get_chat_template(tokenizer, chat_template=chat_template_name)
-    model = FastLanguageModel.get_peft_model(model, temporary_location=str(UNSLOTH_TEMP_BUFFERS_PATH), **resolve_lora_config(config))
+    model = FastLanguageModel.get_peft_model(model, temporary_location=str(unsloth_temp_buffers_path), **resolve_lora_config(config))
 
     # 6. Prepare dataset
     from datasets import load_dataset
