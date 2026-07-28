@@ -12,6 +12,7 @@ from nanocord.train.cpt import (
     resolve_lora_config,
     resolve_training_args,
     resolve_embedding_learning_rate,
+    apply_vram_safety_limit,
 )
 
 
@@ -52,6 +53,9 @@ def run_sft_training(config: Dict) -> Path:
     dataset with loss masked to assistant-only tokens, and saves the
     resulting LoRA adapter.
     """
+    # Apply VRAM safety limit as the very first action
+    apply_vram_safety_limit(config)
+
     # 1. Validate channel_id/user_id
     user_id = config.get("user_id")
     channel_id = config.get("channel_id")

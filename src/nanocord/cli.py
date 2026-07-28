@@ -151,6 +151,7 @@ train:
     warmup_ratio: 0.05
     packing: true
     seed: 3407
+    vram_memory_fraction: 0.9  # Fraction of total GPU memory this process is allowed to use (0-1]; lower this if training crashes the system/driver rather than raising a clean OOM error
     cpt:
         # Overrides for CPT training config
         # vram_safe_max_seq_length: 1024  # uncomment + lower per_device_train_batch_size/effective_batch_size under train: if hitting VRAM OOM

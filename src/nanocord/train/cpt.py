@@ -2,12 +2,13 @@
 Continued Pretraining (CPT) training functions.
 """
 import gc
-import torch
-
+import logging
 from enum import Enum
 from pathlib import Path
 from typing import Dict, Optional
 
+# Set up logger for this module
+logger = logging.getLogger(__name__)
 
 class BaseModel(str, Enum):
     SMOLLM3_3B = "smollm3-3b"
@@ -42,6 +43,42 @@ class MissingDatasetIdentifiersError(Exception):
     """Raised when config lacks channel_id/user_id needed to locate the
     CPT dataset and name the output checkpoint."""
     pass
+
+
+def apply_vram_safety_limit(config: Dict) -> None:
+    """
+    Apply a VRAM safety limit using torch.cuda.set_per_process_memory_fraction.
+
+    This prevents system crashes by raising a clean OutOfMemoryError when
+    the memory limit is exceeded, instead of letting allocations overflow
+    physical VRAM and potentially trigger Windows driver TDR events or hard crashes.
+
+    Args:
+        config: The merged configuration dict
+
+    Raises:
+        ValueError: If vram_memory_fraction is not in the valid range (0, 1]
+    """
+    # Get the memory fraction from config with a default of 0.9
+    fraction = config.get("vram_memory_fraction", 0.9)
+
+    # Validate the fraction value
+    if not isinstance(fraction, (int, float)) or fraction <= 0 or fraction > 1:
+        raise ValueError(
+            f"vram_memory_fraction must be a float in the range (0, 1], got {fraction}"
+        )
+
+    # Import torch only when needed to follow project discipline
+    import torch
+
+    # Check if CUDA is available before attempting to set memory limit
+    if not torch.cuda.is_available():
+        logger.warning("No GPU detected. VRAM safety limit not applied.")
+        return
+
+    # Apply the memory limit using torch's per-process memory fraction setting
+    torch.cuda.set_per_process_memory_fraction(fraction, device=0)
+    logger.info(f"Applied VRAM safety limit: {fraction} of total GPU memory")
 
 
 def resolve_base_model(name: Optional[str]) -> str:
@@ -270,6 +307,9 @@ def run_cpt_training(config: Dict) -> Path:
                             any model, so this error path never triggers a
                             GPU/model-download attempt.
     """
+    # Apply VRAM safety limit as the very first action
+    apply_vram_safety_limit(config)
+
     channel_id = config.get("channel_id")
     user_id = config.get("user_id")
     if not channel_id or not user_id:
