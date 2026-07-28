@@ -310,7 +310,8 @@ def dataset_cpt(
         offset=merged_config["offset"],
         distributed=merged_config["distributed"],
         reverse=merged_config["reverse"],
-        redownload=merged_config["redownload"]
+        redownload=merged_config["redownload"],
+        output_dir=merged_config.get("output_dir")
     )
 
 
@@ -598,7 +599,8 @@ def pipeline_run(
                 offset=merged_config["offset"],
                 distributed=merged_config["distributed"],
                 reverse=merged_config["reverse"],
-                redownload=merged_config["redownload"]
+                redownload=merged_config["redownload"],
+                output_dir=merged_config.get("output_dir")
             )
             typer.echo("CPT dataset built successfully")
 

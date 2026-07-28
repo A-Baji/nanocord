@@ -34,6 +34,7 @@ def parse_logs(
     thought_time: int = 5,
     thought_max: Optional[int] = None,
     thought_min: int = 6,
+    output_dir: Optional[str] = None,
 ) -> Path:
     """
     Parse Discord chat logs and create a dataset of thoughts.
@@ -53,7 +54,7 @@ def parse_logs(
         UserNotFoundError: If no messages are found for the specified user
     """
 
-    base = resolve_output_dir(config)
+    base = resolve_output_dir({"output_dir": output_dir})
     dataset_path = base / "processed"
     log_dir = base / "raw" / "discordchat_export"
 
@@ -140,6 +141,7 @@ def build_cpt_dataset(
     distributed: bool = False,
     reverse: bool = False,
     redownload: bool = False,
+    output_dir: Optional[str] = None,
 ) -> Path:
     """
     Main function to orchestrate the export and dataset creation process for CPT.
@@ -162,6 +164,7 @@ def build_cpt_dataset(
         distributed: Select lines as an even distribution instead of sequentially
         reverse: Reverse the order in which to select lines for the dataset
         redownload: Redownload the Discord chat logs
+        output_dir: Optional - overrides the base directory for all generated output
 
     Returns:
         Path: Path to the created dataset file
@@ -169,7 +172,7 @@ def build_cpt_dataset(
     channel_user = f"{user_id}_{channel_id}"
 
     # Get log file path
-    base = resolve_output_dir(config)
+    base = resolve_output_dir({"output_dir": output_dir})
     dataset_path = base / "processed"
     log_dir = base / "raw" / "discordchat_export"
 
@@ -203,6 +206,7 @@ def build_cpt_dataset(
             thought_time,
             thought_max,
             thought_min,
+            output_dir=output_dir,
         )
     except UserNotFoundError as e:
         logger.error(f"{e}")

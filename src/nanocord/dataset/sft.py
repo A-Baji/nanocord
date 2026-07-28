@@ -79,6 +79,7 @@ def parse_sft_logs(
     context_thought_time: Optional[int] = None,
     context_thought_max: Optional[int] = None,
     context_thought_min: Optional[int] = None,
+    output_dir: Optional[str] = None,
 ) -> Path:
     """
     Parse Discord chat logs and create an SFT dataset of (context thought ->
@@ -113,7 +114,7 @@ def parse_sft_logs(
     context_thought_max = thought_max if context_thought_max is None else context_thought_max
     context_thought_min = thought_min if context_thought_min is None else context_thought_min
 
-    base = resolve_output_dir(config)
+    base = resolve_output_dir({"output_dir": output_dir})
     dataset_path = base / "processed"
     log_dir = base / "raw" / "discordchat_export"
 
@@ -271,6 +272,7 @@ def build_sft_dataset(config: Dict) -> Path:
             context_thought_time,
             context_thought_max,
             context_thought_min,
+            output_dir=config.get("output_dir"),
         )
     except UserNotFoundError as e:
         logger.error(f"{e}")
