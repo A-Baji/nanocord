@@ -388,6 +388,8 @@ def run_cpt_training(config: Dict) -> Path:
     })
 
     # Clear cached PyTorch allocations before trainer initialization
+    import torch
+    
     gc.collect()
     torch.cuda.empty_cache()
 
