@@ -107,13 +107,12 @@ def run_sft_training(config: Dict) -> Path:
     from unsloth import FastLanguageModel
     from peft import PeftModel
 
-    # Force device_map="cuda:0" to prevent Hugging Face Accelerate from offloading
-    # layers to CPU on 16GB GPUs during 16-bit unquantized loading.
+    # Force device_map="cpu" to prevent split-device errors and GPU OOM during 16-bit merge.
     base_model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=hf_repo_id,
         max_seq_length=config.get("max_seq_length", 2048),
         load_in_4bit=False,
-        device_map="cuda:0",
+        device_map="cpu",
     )
     model_with_cpt = PeftModel.from_pretrained(base_model, str(cpt_checkpoint_dir))
     merged_model = model_with_cpt.merge_and_unload()
