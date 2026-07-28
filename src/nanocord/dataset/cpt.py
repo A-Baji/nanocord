@@ -13,8 +13,7 @@ from nanocord.dataset.discord_export import export_channel_logs
 from nanocord.dataset.thoughts import group_into_thoughts
 from nanocord.dataset.thoughts import UserNotFoundError
 from nanocord.dataset.thoughts import validate_thought
-from nanocord.paths import DATASET_PATH
-from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH
+from nanocord.paths import resolve_output_dir
 
 # Use the global logger
 logger = global_logger
@@ -54,7 +53,15 @@ def parse_logs(
         UserNotFoundError: If no messages are found for the specified user
     """
 
-    files_path = DATASET_PATH
+    base = resolve_output_dir(config)
+    dataset_path = base / "processed"
+    log_dir = base / "raw" / "discordchat_export"
+
+    # Create directories if they don't exist
+    dataset_path.mkdir(parents=True, exist_ok=True)
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    files_path = dataset_path
     dataset_file_path = files_path / f"{user}_{channel}_cpt_data_set.jsonl"
 
     with open(file, "r", encoding="utf-8") as data_file:
@@ -162,8 +169,16 @@ def build_cpt_dataset(
     channel_user = f"{user_id}_{channel_id}"
 
     # Get log file path
-    full_logs_path = DISCORD_CHAT_EXPORTER_LOGS_PATH / f"{channel_id}_logs.json"
-    full_dataset_path = DATASET_PATH / f"{channel_user}_cpt_data_set.jsonl"
+    base = resolve_output_dir(config)
+    dataset_path = base / "processed"
+    log_dir = base / "raw" / "discordchat_export"
+
+    # Create directories if they don't exist
+    dataset_path.mkdir(parents=True, exist_ok=True)
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    full_logs_path = log_dir / f"{channel_id}_logs.json"
+    full_dataset_path = dataset_path / f"{channel_user}_cpt_data_set.jsonl"
 
     # Download logs
     if not full_logs_path.exists() or redownload:

@@ -279,7 +279,10 @@ def run_cpt_training(config: Dict) -> Path:
             "and name the output checkpoint."
         )
 
-    from nanocord.paths import DATASET_PATH, MODEL_PATH
+    from nanocord.paths import resolve_output_dir
+
+    import os
+    os.environ.setdefault("UNSLOTH_COMPILE_LOCATION", str(UNSLOTH_CACHE_PATH))
 
     dataset_file = DATASET_PATH / f"{user_id}_{channel_id}_cpt_data_set.jsonl"
     if not dataset_file.exists():
@@ -301,7 +304,7 @@ def run_cpt_training(config: Dict) -> Path:
     lora_kwargs = resolve_lora_config(config)
     lora_kwargs["use_gradient_checkpointing"] = lora_kwargs.get("use_gradient_checkpointing", "unsloth")
 
-    model = FastLanguageModel.get_peft_model(model, **lora_kwargs)
+    model = FastLanguageModel.get_peft_model(model, temporary_location=str(UNSLOTH_TEMP_BUFFERS_PATH), **lora_kwargs)
 
     from datasets import load_dataset
 
@@ -346,7 +349,7 @@ def run_cpt_training(config: Dict) -> Path:
 
     trainer.train()
 
-    model.save_pretrained(str(output_dir))
+    model.save_pretrained(str(output_dir), temporary_location=str(UNSLOTH_TEMP_BUFFERS_PATH))
     tokenizer.save_pretrained(str(output_dir))
 
     return output_dir

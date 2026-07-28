@@ -162,6 +162,7 @@ train:
 
 bot:
     # Placeholder for bot config
+output_dir: null  # Optional - overrides the base directory for ALL generated output (datasets, model checkpoints, raw Discord exports, Unsloth cache/temp dirs); config.yaml's own location is NOT affected
 """
 
     # Write the config file

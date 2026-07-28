@@ -62,16 +62,29 @@ def run_sft_training(config: Dict) -> Path:
         )
 
     # 2. Validate dataset and checkpoint files exist before loading heavy libraries
-    from nanocord.paths import DATASET_PATH, MODEL_PATH
+    base = resolve_output_dir(config)
+    dataset_path = base / "processed"
+    model_path = base / "models"
+    unsloth_cache_path = base / "unsloth_compiled_cache"
+    unsloth_temp_buffers_path = base / "unsloth_temporary_saved_buffers"
 
-    cpt_checkpoint_dir = MODEL_PATH / f"{user_id}_{channel_id}_cpt_lora"
+    # Create directories if they don't exist
+    dataset_path.mkdir(parents=True, exist_ok=True)
+    model_path.mkdir(parents=True, exist_ok=True)
+    unsloth_cache_path.mkdir(parents=True, exist_ok=True)
+    unsloth_temp_buffers_path.mkdir(parents=True, exist_ok=True)
+
+    import os
+    os.environ.setdefault("UNSLOTH_COMPILE_LOCATION", str(unsloth_cache_path))
+
+    cpt_checkpoint_dir = model_path / f"{user_id}_{channel_id}_cpt_lora"
     if not cpt_checkpoint_dir.exists():
         raise FileNotFoundError(
             f"CPT checkpoint directory does not exist. Please run 'train cpt' first. "
             f"Expected: {cpt_checkpoint_dir}"
         )
 
-    sft_dataset_file = DATASET_PATH / f"{user_id}_{channel_id}_sft_data_set.jsonl"
+    sft_dataset_file = dataset_path / f"{user_id}_{channel_id}_sft_data_set.jsonl"
     if not sft_dataset_file.exists():
         raise FileNotFoundError(
             f"SFT dataset file does not exist. Please run 'dataset sft' first. "
@@ -100,7 +113,7 @@ def run_sft_training(config: Dict) -> Path:
     model_with_cpt = PeftModel.from_pretrained(base_model, str(cpt_checkpoint_dir))
     merged_model = model_with_cpt.merge_and_unload()
     merged_dir = MODEL_PATH / f"{user_id}_{channel_id}_cpt_merged"
-    merged_model.save_pretrained(str(merged_dir))
+    merged_model.save_pretrained(str(merged_dir), temporary_location=str(UNSLOTH_TEMP_BUFFERS_PATH))
     tokenizer.save_pretrained(str(merged_dir))
 
     # Completely purge full-precision model from VRAM before starting SFT
@@ -119,7 +132,7 @@ def run_sft_training(config: Dict) -> Path:
     from unsloth.chat_templates import get_chat_template
     chat_template_name, instruction_part, response_part = resolve_chat_template(config.get("base_model"))
     tokenizer = get_chat_template(tokenizer, chat_template=chat_template_name)
-    model = FastLanguageModel.get_peft_model(model, **resolve_lora_config(config))
+    model = FastLanguageModel.get_peft_model(model, temporary_location=str(UNSLOTH_TEMP_BUFFERS_PATH), **resolve_lora_config(config))
 
     # 6. Prepare dataset
     from datasets import load_dataset
@@ -181,6 +194,6 @@ def run_sft_training(config: Dict) -> Path:
 
     # 8. Train and save
     trainer.train()
-    model.save_pretrained(str(output_dir))
+    model.save_pretrained(str(output_dir), temporary_location=str(UNSLOTH_TEMP_BUFFERS_PATH))
     tokenizer.save_pretrained(str(output_dir))
     return output_dir
