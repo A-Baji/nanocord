@@ -1,4 +1,5 @@
 import re
+import emoji
 from datetime import datetime
 from datetime import timedelta
 
@@ -7,13 +8,37 @@ class UserNotFoundError(Exception):
     pass
 
 
+def strip_emoji_and_emotes(text: str) -> str:
+    """
+    Remove emoji and Discord custom emote shortcodes from text for word-counting purposes only.
+
+    This function is for validation logic only - the actual stored thought text
+    (used for training) must keep emoji and emotes exactly as-is, unchanged.
+
+    Args:
+        text: Input text that may contain unicode emoji and :emote_name: shortcodes
+
+    Returns:
+        Text with all emoji and emote shortcodes removed, suitable only for word counting
+    """
+    # Remove unicode emoji
+    text_without_emoji = emoji.replace_emoji(text, replace="")
+    # Remove Discord custom emote shortcodes (like :thumbsup:, :smile:)
+    text_without_emotes = re.sub(r":\w+:", "", text_without_emoji)
+    return text_without_emotes
+
+
 def validate_thought(thought: str, thought_min: int = 6, thought_max: int = None) -> bool:
     """
     If the thought's word count is within `thought_min` and `thought_max`,
         return True
+
+    Note: Emoji and Discord custom emote shortcodes (like :thumbsup:) do not
+    count toward the word threshold. A short real-text message padded with
+    several emoji no longer incorrectly passes thought_min.
     """
-    # Count words (excluding empty strings)
-    word_count = len([word for word in thought.split() if word])
+    # Count words (excluding empty strings) - using stripped text for counting
+    word_count = len([word for word in strip_emoji_and_emotes(thought).split() if word])
     if thought_max is None:
         thought_max = 999999
     if word_count >= thought_min and thought_max >= word_count:

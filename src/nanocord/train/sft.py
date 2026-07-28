@@ -144,10 +144,13 @@ def run_sft_training(config: Dict) -> Path:
     full_dataset = load_dataset("json", data_files=str(sft_dataset_file))["train"]
 
     def formatting_prompts_func(examples):
-        texts = [
-            tokenizer.apply_chat_template(convo, tokenize=False, add_generation_prompt=False)
-            for convo in examples["messages"]
-        ]
+        texts = []
+        for convo in examples["messages"]:
+            formatted = tokenizer.apply_chat_template(convo, tokenize=False, add_generation_prompt=False)
+            # EOS safety net: ensure the formatted string ends with EOS token
+            if not formatted.endswith(tokenizer.eos_token):
+                formatted += tokenizer.eos_token
+            texts.append(formatted)
         return {"text": texts}
 
     full_dataset = full_dataset.map(formatting_prompts_func, batched=True)
@@ -169,6 +172,8 @@ def run_sft_training(config: Dict) -> Path:
     )
 
     training_args_dict = resolve_training_args(config, output_dir)
+    # Note: train.sft.learning_rate can be overridden in config.yaml (e.g., 0.00002)
+    # The shared train.learning_rate is used by default
     training_args_dict.update({
         "dataset_text_field": "text",
         "max_seq_length": effective_max_seq_length,
