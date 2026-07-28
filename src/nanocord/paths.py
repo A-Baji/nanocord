@@ -23,4 +23,4 @@ def resolve_output_dir(config: Dict) -> pathlib.Path:
     else DATA_DIR (the existing constant, unchanged) - matching today's behavior
     exactly when output_dir is unset. Does NOT create any subdirectories itself.
     """
-    return pathlib.Path(config.get("output_dir", DATA_DIR))
+    return pathlib.Path(config.get("output_dir") or DATA_DIR)

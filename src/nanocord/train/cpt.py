@@ -254,7 +254,7 @@ def run_cpt_training(config: Dict) -> Path:
 
     Returns:
         Path: directory the LoRA adapter was saved to,
-              MODEL_PATH / f"{user_id}_{channel_id}_cpt_lora"
+              model_path / f"{user_id}_{channel_id}_cpt_lora"
 
     Raises:
         MissingDatasetIdentifiersError: if channel_id or user_id missing
@@ -262,7 +262,7 @@ def run_cpt_training(config: Dict) -> Path:
         ValueError: if config["base_model"] is set but not a recognized
                     BaseModel value.
         FileNotFoundError: if the expected CPT dataset JSONL file
-                            (nanocord.paths.DATASET_PATH /
+                            (dataset_path /
                             f"{user_id}_{channel_id}_cpt_data_set.jsonl")
                             does not exist - raise with a clear message
                             telling the user to run `dataset cpt` first.
@@ -281,10 +281,23 @@ def run_cpt_training(config: Dict) -> Path:
 
     from nanocord.paths import resolve_output_dir
 
-    import os
-    os.environ.setdefault("UNSLOTH_COMPILE_LOCATION", str(UNSLOTH_CACHE_PATH))
+    base = resolve_output_dir(config)
 
-    dataset_file = DATASET_PATH / f"{user_id}_{channel_id}_cpt_data_set.jsonl"
+    # Create directories if they don't exist
+    dataset_path = base / "processed"
+    model_path = base / "models"
+    unsloth_cache_path = base / "unsloth_compiled_cache"
+    unsloth_temp_buffers_path = base / "unsloth_temporary_saved_buffers"
+
+    dataset_path.mkdir(parents=True, exist_ok=True)
+    model_path.mkdir(parents=True, exist_ok=True)
+    unsloth_cache_path.mkdir(parents=True, exist_ok=True)
+    unsloth_temp_buffers_path.mkdir(parents=True, exist_ok=True)
+
+    import os
+    os.environ.setdefault("UNSLOTH_COMPILE_LOCATION", str(unsloth_cache_path))
+
+    dataset_file = dataset_path / f"{user_id}_{channel_id}_cpt_data_set.jsonl"
     if not dataset_file.exists():
         raise FileNotFoundError(
             f"CPT dataset not found at {dataset_file}. "
@@ -304,7 +317,7 @@ def run_cpt_training(config: Dict) -> Path:
     lora_kwargs = resolve_lora_config(config)
     lora_kwargs["use_gradient_checkpointing"] = lora_kwargs.get("use_gradient_checkpointing", "unsloth")
 
-    model = FastLanguageModel.get_peft_model(model, temporary_location=str(UNSLOTH_TEMP_BUFFERS_PATH), **lora_kwargs)
+    model = FastLanguageModel.get_peft_model(model, temporary_location=str(unsloth_temp_buffers_path), **lora_kwargs)
 
     from datasets import load_dataset
 
@@ -312,7 +325,7 @@ def run_cpt_training(config: Dict) -> Path:
     split = full_dataset.train_test_split(test_size=config.get("eval_split", 0.05), seed=config.get("seed", 3407))
     train_dataset, eval_dataset = split["train"], split["test"]
 
-    output_dir = MODEL_PATH / f"{user_id}_{channel_id}_cpt_lora"
+    output_dir = model_path / f"{user_id}_{channel_id}_cpt_lora"
 
     from transformers import EarlyStoppingCallback
     from unsloth import UnslothTrainer, UnslothTrainingArguments
@@ -349,7 +362,7 @@ def run_cpt_training(config: Dict) -> Path:
 
     trainer.train()
 
-    model.save_pretrained(str(output_dir), temporary_location=str(UNSLOTH_TEMP_BUFFERS_PATH))
+    model.save_pretrained(str(output_dir), temporary_location=str(unsloth_temp_buffers_path))
     tokenizer.save_pretrained(str(output_dir))
 
     return output_dir

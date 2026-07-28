@@ -112,8 +112,8 @@ def run_sft_training(config: Dict) -> Path:
     )
     model_with_cpt = PeftModel.from_pretrained(base_model, str(cpt_checkpoint_dir))
     merged_model = model_with_cpt.merge_and_unload()
-    merged_dir = MODEL_PATH / f"{user_id}_{channel_id}_cpt_merged"
-    merged_model.save_pretrained(str(merged_dir), temporary_location=str(UNSLOTH_TEMP_BUFFERS_PATH))
+    merged_dir = model_path / f"{user_id}_{channel_id}_cpt_merged"
+    merged_model.save_pretrained(str(merged_dir), temporary_location=str(unsloth_temp_buffers_path))
     tokenizer.save_pretrained(str(merged_dir))
 
     # Completely purge full-precision model from VRAM before starting SFT
@@ -151,7 +151,7 @@ def run_sft_training(config: Dict) -> Path:
     train_dataset, eval_dataset = split["train"], split["test"]
 
     # 7. Setup training arguments
-    output_dir = MODEL_PATH / f"{user_id}_{channel_id}_sft_lora"
+    output_dir = model_path / f"{user_id}_{channel_id}_sft_lora"
 
     from transformers import EarlyStoppingCallback
     from unsloth import UnslothTrainer, UnslothTrainingArguments
@@ -194,6 +194,6 @@ def run_sft_training(config: Dict) -> Path:
 
     # 8. Train and save
     trainer.train()
-    model.save_pretrained(str(output_dir), temporary_location=str(UNSLOTH_TEMP_BUFFERS_PATH))
+    model.save_pretrained(str(output_dir), temporary_location=str(unsloth_temp_buffers_path))
     tokenizer.save_pretrained(str(output_dir))
     return output_dir
