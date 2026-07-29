@@ -168,9 +168,9 @@ def parse_sft_logs(
                 context_text = context_thought["text"]
                 response_text = reply_thought["text"]
 
-                if not validate_thought(context_text, context_thought_min, context_thought_max):
+                if not validate_thought(context_text, context_thought_min, context_thought_max, context_thought.get("mentions", []), context_thought.get("emote_codes", [])):
                     continue
-                if not validate_thought(response_text, thought_min, thought_max):
+                if not validate_thought(response_text, thought_min, thought_max, reply_thought.get("mentions", []), reply_thought.get("emote_codes", [])):
                     continue
 
                 pair_key = (context_text, response_text)

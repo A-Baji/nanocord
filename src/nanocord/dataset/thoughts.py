@@ -71,12 +71,13 @@ def normalize_mentions(msg: dict) -> Tuple[str, List[str]]:
 
         # If there's a nickname, swap it for the username in the content
         if entry.get("nickname"):
-            working_content = working_content.replace(candidate, "@" + entry["name"])
+            # Replace only the first occurrence to avoid replacing one mention with another
+            working_content = working_content.replace(candidate, "@" + entry["name"], 1)
 
     return (working_content, real_mentions)
 
 
-def strip_emoji_and_emotes(text: str) -> str:
+def strip_emoji_and_emotes(text: str, mentions: list = None, emote_codes: list = None) -> str:
     """
     Remove emoji and Discord custom emote shortcodes from text for word-counting purposes only.
 
@@ -85,18 +86,28 @@ def strip_emoji_and_emotes(text: str) -> str:
 
     Args:
         text: Input text that may contain unicode emoji and :emote_name: shortcodes
+        mentions: List of mention strings to remove from text (e.g., ["@user1", "@user2"])
+        emote_codes: List of emote codes to remove from text (e.g., ["thumbsup", "smile"])
 
     Returns:
-        Text with all emoji and emote shortcodes removed, suitable only for word counting
+        Text with all emoji, emote shortcodes, and mentions removed, suitable only for word counting
     """
+    # Remove mentions first
+    if mentions:
+        for mention in mentions:
+            text = text.replace(mention, "", 1)
+
+    # Remove emote codes next
+    if emote_codes:
+        for code in emote_codes:
+            text = text.replace(f":{code}:", "", 1)
+
     # Remove unicode emoji
     text_without_emoji = emoji.replace_emoji(text, replace="")
-    # Remove Discord custom emote shortcodes (like :thumbsup:, :smile:)
-    text_without_emotes = re.sub(r":\w+:", "", text_without_emoji)
-    return text_without_emotes
+    return text_without_emoji
 
 
-def validate_thought(thought: str, thought_min: int = 6, thought_max: int = None) -> bool:
+def validate_thought(thought: str, thought_min: int = 6, thought_max: int = None, mentions: list = None, emote_codes: list = None) -> bool:
     """
     If the thought's word count is within `thought_min` and `thought_max`,
         return True
@@ -106,7 +117,7 @@ def validate_thought(thought: str, thought_min: int = 6, thought_max: int = None
     several emoji no longer incorrectly passes thought_min.
     """
     # Count words (excluding empty strings) - using stripped text for counting
-    word_count = len([word for word in strip_emoji_and_emotes(thought).split() if word])
+    word_count = len([word for word in strip_emoji_and_emotes(thought, mentions, emote_codes).split() if word])
     if thought_max is None:
         thought_max = 999999
     if word_count >= thought_min and thought_max >= word_count:
@@ -165,6 +176,8 @@ def group_into_thoughts(messages: list, thought_time: int) -> list:
                                                  # otherwise None
             "mentions": list[str],             # list of mention strings (usernames) that were
                                                  # found in any message in this thought
+            "emote_codes": list[str],          # list of emote codes that were found in any
+                                                 # message in this thought
           }
     """
     if not messages:
@@ -176,11 +189,17 @@ def group_into_thoughts(messages: list, thought_time: int) -> list:
         cleaned_content = cleanup_string(normalized_content) if normalized_content else normalized_content
         msg = {**msg, "content": cleaned_content}
 
+        # Extract emote codes from inlineEmojis
+        emote_codes = []
+        for emoji_entry in msg.get("inlineEmojis", []):
+            emote_codes.append(emoji_entry["code"])
+
         return {
             "text": build_thought("", msg),
             "message_ids": [msg.get("id")],
             "reply_reference_id": msg["reference"]["messageId"] if "reference" in msg else None,
             "mentions": real_mentions,  # Initialize with the mentions from this message
+            "emote_codes": emote_codes,  # Initialize with the emote codes from this message
         }
 
     thoughts = []
@@ -209,6 +228,12 @@ def group_into_thoughts(messages: list, thought_time: int) -> list:
 
             # Accumulate mentions from this message into the thought's mentions list
             current["mentions"].extend(real_mentions)
+
+            # Accumulate emote codes from this message into the thought's emote_codes list
+            for emoji_entry in msg.get("inlineEmojis", []):
+                emote_code = emoji_entry["code"]
+                if emote_code not in current["emote_codes"]:
+                    current["emote_codes"].append(emote_code)
 
     thoughts.append(current)
     return thoughts

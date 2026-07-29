@@ -82,7 +82,7 @@ def parse_logs(
             thought_max = 999999 if not thought_max else thought_max
 
             for thought in group_into_thoughts(messages, thought_time):
-                if validate_thought(thought["text"], thought_min, thought_max):
+                if validate_thought(thought["text"], thought_min, thought_max, thought.get("mentions", []), thought.get("emote_codes", [])):
                     add_to_dataset(thought["text"], dataset)
 
     if path.getsize(dataset_file_path) == 0:
