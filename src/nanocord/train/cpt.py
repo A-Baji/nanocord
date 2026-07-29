@@ -341,10 +341,11 @@ def run_cpt_training(config: Dict) -> Path:
     from unsloth import FastLanguageModel
 
     hf_repo_id = resolve_base_model(config.get("base_model"))
+    max_seq_length = config.get("max_seq_length", 2048)
 
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=hf_repo_id,
-        max_seq_length=config.get("max_seq_length", 2048),
+        max_seq_length=max_seq_length,
         load_in_4bit=config.get("load_in_4bit", True),
     )
 
@@ -365,9 +366,6 @@ def run_cpt_training(config: Dict) -> Path:
     from unsloth import UnslothTrainer, UnslothTrainingArguments
 
     training_args_dict = resolve_training_args(config, output_dir)
-
-    # Use max_seq_length directly for both model loading and trainer configuration
-    max_seq_length = config.get("max_seq_length", 2048)
 
     training_args_dict.update({
         "dataset_text_field": "text",
