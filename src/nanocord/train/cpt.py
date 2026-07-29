@@ -199,12 +199,6 @@ def resolve_training_args(config: Dict, output_dir: Path) -> Dict:
       - report_to = "none"
       - logging_steps = 10
 
-    Note: config["vram_safe_max_seq_length"] (default: None) is NOT read by
-    this function. It's read directly by run_cpt_training after this
-    function returns, to optionally clamp max_seq_length down for
-    VRAM-constrained hardware without mutating config["max_seq_length"]
-    itself. Documented here only so the full CPT training config surface
-    is discoverable from one place.
 
     Returns:
         Dict of kwargs ready to unpack into transformers.TrainingArguments.
@@ -372,16 +366,12 @@ def run_cpt_training(config: Dict) -> Path:
 
     training_args_dict = resolve_training_args(config, output_dir)
 
-    vram_safe_max_seq_length = config.get("vram_safe_max_seq_length")
-    effective_max_seq_length = (
-        min(config.get("max_seq_length", 2048), vram_safe_max_seq_length)
-        if vram_safe_max_seq_length
-        else config.get("max_seq_length", 2048)
-    )
+    # Use max_seq_length directly for both model loading and trainer configuration
+    max_seq_length = config.get("max_seq_length", 2048)
 
     training_args_dict.update({
         "dataset_text_field": "text",
-        "max_seq_length": effective_max_seq_length,
+        "max_seq_length": max_seq_length,
         "packing": config.get("packing", True),
         "optim": "paged_adamw_8bit",
         "embedding_learning_rate": resolve_embedding_learning_rate(config),

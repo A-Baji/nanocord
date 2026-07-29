@@ -152,9 +152,9 @@ train:
     seed: 3407
     vram_memory_fraction: 0.9  # Fraction of total GPU memory this process is allowed to use (0-1]; lower this if training crashes the system/driver rather than raising a clean OOM error
     cpt:
-        packing: true
         # Overrides for CPT training config
-        # vram_safe_max_seq_length: 1024  # uncomment + lower per_device_train_batch_size/effective_batch_size under train: if hitting VRAM OOM
+        packing: true
+        max_seq_length: 1024
     sft:
         num_train_epochs: 5 # Override - more epochs to firmly cement conversational voice on top of the shared default of 3
         lora_dropout: 0.05 # Override - light regularization against overfitting on a small SFT dataset over 5 epochs, unlike CPT's 0 dropout

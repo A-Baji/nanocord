@@ -164,19 +164,16 @@ def run_sft_training(config: Dict) -> Path:
     from unsloth import UnslothTrainer, UnslothTrainingArguments
     from unsloth.chat_templates import train_on_responses_only
 
-    vram_safe_max_seq_length = config.get("vram_safe_max_seq_length")
-    effective_max_seq_length = (
-        min(config.get("max_seq_length", 2048), vram_safe_max_seq_length)
-        if vram_safe_max_seq_length
-        else config.get("max_seq_length", 2048)
-    )
-
     training_args_dict = resolve_training_args(config, output_dir)
     # Note: train.sft.learning_rate can be overridden in config.yaml (e.g., 0.00002)
     # The shared train.learning_rate is used by default
+
+    # Use max_seq_length directly for both model loading and trainer configuration
+    max_seq_length = config.get("max_seq_length", 2048)
+
     training_args_dict.update({
         "dataset_text_field": "text",
-        "max_seq_length": effective_max_seq_length,
+        "max_seq_length": max_seq_length,
         "packing": False,  # SFT requires packing=False for response masking
         "optim": "paged_adamw_8bit",
         "embedding_learning_rate": resolve_embedding_learning_rate(config),
