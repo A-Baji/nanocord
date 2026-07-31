@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 class BaseModel(str, Enum):
     SMOLLM3_3B = "smollm3-3b"
     QWEN3_4B = "qwen3-4b"
+    QWEN3_4B_INSTRUCT = "qwen3-4b-instruct"
     QWEN3_1_7B = "qwen3-1.7b"
     LLAMA_3_2_3B = "llama-3.2-3b"
     QWEN2_5_7B = "qwen2.5-7b"
@@ -24,6 +25,7 @@ DEFAULT_BASE_MODEL = BaseModel.QWEN2_5_7B
 BASE_MODEL_HF_IDS = {
     BaseModel.SMOLLM3_3B: "unsloth/SmolLM3-3B-Base",
     BaseModel.QWEN3_4B: "unsloth/Qwen3-4B-Base",
+    BaseModel.QWEN3_4B_INSTRUCT: "unsloth/Qwen3-4B-Instruct-2507",
     BaseModel.QWEN3_1_7B: "unsloth/Qwen3-1.7B-Base",
     BaseModel.LLAMA_3_2_3B: "unsloth/Llama-3.2-3B",
     BaseModel.QWEN2_5_7B: "unsloth/Qwen2.5-7B",
@@ -121,6 +123,10 @@ def resolve_lora_config(config: Dict) -> Dict:
 
     Returns:
         Dict of kwargs ready to unpack into FastLanguageModel.get_peft_model.
+
+    Note: When both "embed_tokens" and "lm_head" are present in target_modules,
+    ensure_weight_tying=True is added to the returned dict to maintain
+    consistent embeddings on models with tied embeddings (e.g. Qwen3).
     """
     lora_r = config.get("lora_r", 16)
     lora_alpha = config.get("lora_alpha", lora_r)
@@ -134,7 +140,7 @@ def resolve_lora_config(config: Dict) -> Dict:
     if "embed_tokens" in LORA_TARGET_MODULES or "lm_head" in LORA_TARGET_MODULES:
         modules_to_save = ["lm_head", "embed_tokens"]
 
-    return {
+    result = {
         "r": lora_r,
         "target_modules": LORA_TARGET_MODULES,
         "lora_alpha": lora_alpha,
@@ -146,6 +152,13 @@ def resolve_lora_config(config: Dict) -> Dict:
         "random_state": seed,
         "modules_to_save": modules_to_save,
     }
+
+    # For models with tied embeddings (e.g. Qwen3), ensure weight tying is maintained
+    # when both embed_tokens and lm_head are being trained
+    if modules_to_save:
+        result["ensure_weight_tying"] = True
+
+    return result
 
 
 def compute_gradient_accumulation_steps(effective_batch_size: int, per_device_train_batch_size: int) -> int:
