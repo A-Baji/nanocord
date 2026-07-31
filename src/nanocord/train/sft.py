@@ -20,7 +20,7 @@ from nanocord.train.cpt import (
 BASE_MODEL_CHAT_TEMPLATES = {
     BaseModel.SMOLLM3_3B: ("chatml", "user\n", "assistant\n"),
     BaseModel.QWEN3_4B: ("chatml", "user\n", "assistant\n"),
-    BaseModel.QWEN3_4B_INSTRUCT: ("qwen3-instruct", "user\n", "assistant\n"),
+    BaseModel.QWEN3_4B_INSTRUCT: ("qwen3-instruct", "<|im_start|>user\n", "<|im_start|>assistant\n"),
     BaseModel.QWEN3_1_7B: ("chatml", "user\n", "assistant\n"),
     BaseModel.QWEN2_5_7B: ("qwen2.5", "user\n", "assistant\n"),
     BaseModel.LLAMA_3_2_3B: (
