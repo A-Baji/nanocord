@@ -37,8 +37,14 @@ BASE_MODEL_HF_IDS = {
 LORA_TARGET_MODULES = [
     "q_proj", "k_proj", "v_proj", "o_proj",
     "gate_proj", "up_proj", "down_proj",
-    "embed_tokens", "lm_head",
 ]
+
+# Separate flag: whether embed_tokens/lm_head get full (non-LoRA) training
+# via modules_to_save. Kept independent of LORA_TARGET_MODULES so these
+# modules are never also LoRA-adapted via target_modules -- doing both
+# simultaneously breaks PEFT's ensure_weight_tying (modules_to_save cannot
+# wrap an already-LoRA'd Linear).
+TRAIN_EMBED_LM_HEAD = True
 
 
 class MissingDatasetIdentifiersError(Exception):
@@ -124,9 +130,9 @@ def resolve_lora_config(config: Dict) -> Dict:
     Returns:
         Dict of kwargs ready to unpack into FastLanguageModel.get_peft_model.
 
-    Note: When both "embed_tokens" and "lm_head" are present in target_modules,
-    ensure_weight_tying=True is added to the returned dict to maintain
-    consistent embeddings on models with tied embeddings (e.g. Qwen3).
+    Note: modules_to_save (embed_tokens/lm_head full training) and ensure_weight_tying
+    are controlled by the module-level TRAIN_EMBED_LM_HEAD flag, independent of
+    target_modules/LORA_TARGET_MODULES.
     """
     lora_r = config.get("lora_r", 16)
     lora_alpha = config.get("lora_alpha", lora_r)
@@ -137,7 +143,7 @@ def resolve_lora_config(config: Dict) -> Dict:
     # with a lower learning rate. These special modules must be saved separately,
     # so we set modules_to_save to include them.
     modules_to_save = []
-    if "embed_tokens" in LORA_TARGET_MODULES or "lm_head" in LORA_TARGET_MODULES:
+    if TRAIN_EMBED_LM_HEAD:
         modules_to_save = ["lm_head", "embed_tokens"]
 
     result = {
