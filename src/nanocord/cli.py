@@ -478,9 +478,6 @@ def dataset_sft(
     try:
         dataset_path = build_sft_dataset(merged_config)
         typer.echo(f"SFT dataset created at: {dataset_path}")
-    except NotImplementedError:
-        typer.secho("Error: SFT dataset building not yet implemented", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
     except (MissingPersonaNameError, ValueError) as e:
         typer.secho(f"Error: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
@@ -501,13 +498,16 @@ def train_cpt(
     # Load and merge configuration - pass "train.cpt" as the section to load
     merged_config = load_and_merge_config(config_file, {}, "train.cpt")
 
+    # Check for CUDA availability before attempting to run training
+    import torch
+    if not torch.cuda.is_available():
+        typer.secho("Error: No CUDA-capable GPU detected. Training requires an NVIDIA GPU.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
     try:
         # Call the run_cpt_training function
         checkpoint_path = run_cpt_training(merged_config)
         typer.echo(f"CPT training completed. Checkpoint saved at: {checkpoint_path}")
-    except NotImplementedError as e:
-        typer.secho("Error: CPT training not yet implemented", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
     except Exception as e:
         # Re-raise any other exceptions for better debugging
         raise e
@@ -528,13 +528,16 @@ def train_sft(
     # Load and merge configuration - pass "train.sft" as the section to load
     merged_config = load_and_merge_config(config_file, {}, "train.sft")
 
+    # Check for CUDA availability before attempting to run training
+    import torch
+    if not torch.cuda.is_available():
+        typer.secho("Error: No CUDA-capable GPU detected. Training requires an NVIDIA GPU.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
     try:
         # Call the run_sft_training function
         model_path = run_sft_training(merged_config)
         typer.echo(f"SFT training completed. Model saved at: {model_path}")
-    except NotImplementedError as e:
-        typer.secho("Error: SFT training not yet implemented", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
     except Exception as e:
         # Re-raise any other exceptions for better debugging
         raise e
