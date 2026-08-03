@@ -7,7 +7,6 @@ import sys
 from typing import Optional
 
 from nanocord import global_logger
-from nanocord.paths import DISCORD_CHAT_EXPORTER_LOGS_PATH
 
 # Use the global logger
 logger = global_logger
@@ -89,7 +88,7 @@ def resolve_discord_chat_exporter_path(configured_path=None, prompt_for_path=Fal
     )
 
 
-def export_channel_logs(channel_id: str, bot_token: str, discord_chat_exporter_path: Optional[str] = None):
+def export_channel_logs(channel_id: str, bot_token: str, discord_chat_exporter_path: Optional[str] = None, log_dir: pathlib.Path = None):
     """
     Export Discord channel logs using DiscordChatExporter.
 
@@ -97,6 +96,7 @@ def export_channel_logs(channel_id: str, bot_token: str, discord_chat_exporter_p
         channel_id (str): The ID of the Discord channel to export
         bot_token (str): The Discord bot token
         discord_chat_exporter_path (str, optional): Path to the DiscordChatExporter executable
+        log_dir (pathlib.Path): Directory where the logs should be saved
 
     Returns:
         pathlib.Path: Path to the exported log file
@@ -120,7 +120,7 @@ def export_channel_logs(channel_id: str, bot_token: str, discord_chat_exporter_p
 
     # Generate the log filename
     log_filename = f"{channel_id}_logs.json"
-    full_log_path = DISCORD_CHAT_EXPORTER_LOGS_PATH / log_filename
+    full_log_path = log_dir / log_filename
 
     subprocess.run(
         [
@@ -149,6 +149,9 @@ def export_channel_logs(channel_id: str, bot_token: str, discord_chat_exporter_p
             "The export process failed. The DiscordChatExporter did not complete successfully. "
             "This may be due to authentication issues, network problems, or other environmental factors."
         )
+
+    # Create log directory if it doesn't exist
+    log_dir.mkdir(parents=True, exist_ok=True)
 
     # Move the file to our expected location
     shutil.move(log_filename, full_log_path)

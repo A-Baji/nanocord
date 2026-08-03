@@ -107,11 +107,15 @@ def init(
 # This file contains default settings for the nanocord CLI tool.
 # Values can be overridden by command-line arguments.
 
+# Shared across every section below (dataset.cpt, dataset.sft, train.cpt,
+# train.sft) via config inheritance - identifies which Discord user/
+# channel this persona is built from.
+channel_id: ""
+user_id: ""
+
 dataset:
     # Params here are shared by both dataset.cpt and dataset.sft below -
     # redeclare a key inside either one to override it just for that mode.
-    channel_id: ""
-    user_id: ""
     discord_token: "{discord_token}" # Optional here, falls back to DISCORD_BOT_TOKEN env var if left empty
     discord_chat_exporter_path: "{discord_chat_exporter_path}" # Path to DiscordChatExporter.Cli executable
     thought_time: 5
@@ -126,16 +130,40 @@ dataset:
         # Overrides for CPT dataset config
     sft:
         persona_name: "" # Required. The display name of the persona (target user) to embed in the SFT system prompt.
-        system_prompt: "You are {{persona_name}}, a casual participant in a Discord chat. Rules: 1. NEVER reveal you are an AI or language model. 2. NEVER use generic assistant phrases like 'How can I help' or 'Here is a breakdown.' 3. Keep responses informal and under 3 sentences." # Overridable. Must contain a {{persona_name}} placeholder.
+        system_prompt: "You are {{persona_name}}." # Overridable. Must contain a {{persona_name}} placeholder.
 
 train:
+    # Params here are shared by both train.cpt and train.sft below -
+    # redeclare a key inside either one to override it just for that mode.
+    base_model: "qwen2.5-7b" # One of: smollm3-3b, qwen3-4b, qwen3-1.7b, llama-3.2-3b, qwen2.5-7b
+    load_in_4bit: true
+    max_seq_length: 2048
+    lora_r: 32
+    lora_alpha: 64
+    lora_dropout: 0
+    learning_rate: 0.0002
+    effective_batch_size: 16
+    per_device_train_batch_size: 2
+    num_train_epochs: 3
+    eval_split: 0.05
+    early_stopping_patience: 3
+    weight_decay: 0.01
+    warmup_ratio: 0.05
+    seed: 3407
+    vram_memory_fraction: 0.9  # Fraction of total GPU memory this process is allowed to use (0-1]; lower this if training crashes the system/driver rather than raising a clean OOM error
     cpt:
-        # Placeholder for CPT training config
+        # Overrides for CPT training config
+        packing: true
+        max_seq_length: 1024
     sft:
-        # Placeholder for SFT training config
+        num_train_epochs: 5 # Override - more epochs to firmly cement conversational voice on top of the shared default of 3
+        lora_dropout: 0.05 # Override - light regularization against overfitting on a small SFT dataset over 5 epochs, unlike CPT's 0 dropout
+        eval_split: 0.1 # Override - a 5% eval slice is noisy for early-stopping decisions on a small personal-chat SFT dataset
+        neftune_noise_alpha: 5 # NEFTune - adds noise to embeddings during SFT training, improves output quality/diversity on small instruction datasets; not used for CPT
 
 bot:
     # Placeholder for bot config
+output_dir: null  # Optional - overrides the base directory for ALL generated output (datasets, model checkpoints, raw Discord exports, Unsloth cache/temp dirs); config.yaml's own location is NOT affected
 """
 
     # Write the config file
@@ -283,7 +311,8 @@ def dataset_cpt(
         offset=merged_config["offset"],
         distributed=merged_config["distributed"],
         reverse=merged_config["reverse"],
-        redownload=merged_config["redownload"]
+        redownload=merged_config["redownload"],
+        output_dir=merged_config.get("output_dir")
     )
 
 
@@ -476,9 +505,12 @@ def train_cpt(
         # Call the run_cpt_training function
         checkpoint_path = run_cpt_training(merged_config)
         typer.echo(f"CPT training completed. Checkpoint saved at: {checkpoint_path}")
-    except NotImplementedError:
+    except NotImplementedError as e:
         typer.secho("Error: CPT training not yet implemented", fg=typer.colors.RED)
         raise typer.Exit(code=1)
+    except Exception as e:
+        # Re-raise any other exceptions for better debugging
+        raise e
 
 
 @train_app.command("sft")
@@ -500,9 +532,12 @@ def train_sft(
         # Call the run_sft_training function
         model_path = run_sft_training(merged_config)
         typer.echo(f"SFT training completed. Model saved at: {model_path}")
-    except NotImplementedError:
+    except NotImplementedError as e:
         typer.secho("Error: SFT training not yet implemented", fg=typer.colors.RED)
         raise typer.Exit(code=1)
+    except Exception as e:
+        # Re-raise any other exceptions for better debugging
+        raise e
 
 
 @bot_app.command("register")
@@ -565,7 +600,8 @@ def pipeline_run(
                 offset=merged_config["offset"],
                 distributed=merged_config["distributed"],
                 reverse=merged_config["reverse"],
-                redownload=merged_config["redownload"]
+                redownload=merged_config["redownload"],
+                output_dir=merged_config.get("output_dir")
             )
             typer.echo("CPT dataset built successfully")
 
@@ -580,7 +616,7 @@ def pipeline_run(
             typer.echo("Building SFT dataset...")
             # Load the SFT config section
             sft_config = load_and_merge_config(config_file, {}, "dataset.sft")
-            # Load the context-specific overrides, if any — same fallback
+            # Load the context-specific overrides, if any - same fallback
             # behavior as the standalone `dataset sft` command: if
             # dataset.sft.context: isn't set, this resolves to the same
             # values already in sft_config.

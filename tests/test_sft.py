@@ -181,7 +181,7 @@ def test_parse_sft_logs_raises_when_user_not_found(tmp_path, monkeypatch):
 def test_parse_sft_logs_separate_context_params_override(tmp_path, monkeypatch):
     monkeypatch.setattr("nanocord.dataset.sft.DATASET_PATH", tmp_path)
 
-    # Context message is short ("hi") — fails the default thought_min=6, but
+    # Context message is short ("hi") - fails the default thought_min=6, but
     # passes a permissive context_thought_min=1. Response message stays
     # validated against the default (unmodified) thought_min.
     messages = [
@@ -200,7 +200,7 @@ def test_parse_sft_logs_separate_context_params_override(tmp_path, monkeypatch):
         assert len(lines) == 1
 
         # Now with default context_thought_min (falls back to thought_min=1
-        # when context_thought_min isn't passed) — the short "hi" context
+        # when context_thought_min isn't passed) - the short "hi" context
         # should pass because we're passing thought_min=1, so context_thought_min
         # also becomes 1.
         result_path_2 = parse_sft_logs(

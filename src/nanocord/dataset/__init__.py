@@ -1,3 +1,1 @@
-from nanocord.paths import DATASET_PATH, DISCORD_CHAT_EXPORTER_LOGS_PATH
-
-__all__ = ["DATASET_PATH", "DISCORD_CHAT_EXPORTER_LOGS_PATH"]
+# Empty init file - all imports are now direct

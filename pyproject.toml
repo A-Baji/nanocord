@@ -16,7 +16,8 @@ classifiers = [
 dependencies = [
     "appdirs>=1.4.4",
     "typer>=0.27.0",
-    "PyYAML>=6.0.3"
+    "PyYAML>=6.0.3",
+    "emoji>=2.0.0"
 ]
 
 [project.scripts]
@@ -26,4 +27,18 @@ nanocord = "nanocord.cli:nanocord"
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
+]
+
+# torch, unsloth, unsloth_zoo, xformers, bitsandbytes intentionally omitted -
+# install manually via Unsloth's hardware-aware installer (unsloth.ai/get-started)
+# BEFORE running `pip install -e .[train]`.
+train = [
+    # torch, unsloth, unsloth_zoo, xformers, bitsandbytes intentionally omitted -
+    # install manually via Unsloth's hardware-aware installer (unsloth.ai/get-started)
+    # BEFORE running `pip install -e .[train]`.
+    "datasets>=3.4.1,<4.4.0",
+    "accelerate>=0.34.1",
+    "transformers>=4.51.3,<=4.57.6",
+    "trl>=0.18.2,<=0.24.0",
+    "peft>=0.18.0",
 ]

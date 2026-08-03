@@ -6,8 +6,100 @@ import pytest
 from nanocord.dataset.thoughts import build_thought
 from nanocord.dataset.thoughts import cleanup_string
 from nanocord.dataset.thoughts import group_into_thoughts
+from nanocord.dataset.thoughts import normalize_mentions
 from nanocord.dataset.thoughts import UserNotFoundError
 from nanocord.dataset.thoughts import validate_thought
+
+
+def test_normalize_mentions():
+    # Test case 1: Real mention with nickname that should be swapped for username
+    msg_with_nickname = {
+        "content": "Hello @john_doe how are you?",
+        "mentions": [
+            {
+                "id": "12345",
+                "name": "john_doe",
+                "nickname": "JohnD"
+            }
+        ]
+    }
+    result_content, result_mentions = normalize_mentions(msg_with_nickname)
+    assert result_content == "Hello @john_doe how are you?"
+    assert result_mentions == ["@john_doe"]
+
+    # Test case 2: Mention without nickname (name used directly) - should still be counted
+    msg_no_nickname = {
+        "content": "Hello @jane_smith how are you?",
+        "mentions": [
+            {
+                "id": "67890",
+                "name": "jane_smith"
+                # no nickname field
+            }
+        ]
+    }
+    result_content, result_mentions = normalize_mentions(msg_no_nickname)
+    assert result_content == "Hello @jane_smith how are you?"
+    assert result_mentions == ["@jane_smith"]
+
+    # Test case 3: Reply-type false positive - mention in reply array but not literally in content
+    msg_false_positive = {
+        "content": "Hello everyone!",
+        "mentions": [
+            {
+                "id": "12345",
+                "name": "john_doe",
+                "nickname": "JohnD"
+            }
+        ]
+    }
+    result_content, result_mentions = normalize_mentions(msg_false_positive)
+    assert result_content == "Hello everyone!"
+    assert result_mentions == []
+
+    # Test case 4: Multiple mentions with mixed scenarios
+    msg_multiple = {
+        "content": "Hey @john_doe and @jane_smith, let's go!",
+        "mentions": [
+            {
+                "id": "12345",
+                "name": "john_doe",
+                "nickname": "JohnD"
+            },
+            {
+                "id": "67890",
+                "name": "jane_smith"
+                # no nickname
+            },
+            {
+                "id": "54321",
+                "name": "bob_wilson",
+                "nickname": "BobW"
+            }
+        ]
+    }
+    result_content, result_mentions = normalize_mentions(msg_multiple)
+    assert result_content == "Hey @john_doe and @jane_smith, let's go!"
+    # Only john_doe and jane_smith are in content, bob_wilson is false positive
+    assert set(result_mentions) == {"@john_doe", "@jane_smith"}
+
+    # Test case 5: No mentions at all
+    msg_no_mentions = {
+        "content": "Hello everyone!",
+        "mentions": []
+    }
+    result_content, result_mentions = normalize_mentions(msg_no_mentions)
+    assert result_content == "Hello everyone!"
+    assert result_mentions == []
+
+    # Test case 6: No mentions key at all
+    msg_no_mentions_key = {
+        "content": "Hello everyone!"
+        # no mentions key
+    }
+    result_content, result_mentions = normalize_mentions(msg_no_mentions_key)
+    assert result_content == "Hello everyone!"
+    assert result_mentions == []
 
 
 def test_validate_thought():
@@ -72,6 +164,9 @@ def test_group_into_thoughts_merges_within_time_window():
     assert thoughts[0]["reply_reference_id"] is None
     assert "Hello" in thoughts[0]["text"]
     assert "world" in thoughts[0]["text"]
+    # Test that mentions field exists and is initialized properly
+    assert "mentions" in thoughts[0]
+    assert thoughts[0]["mentions"] == []
 
 
 def test_group_into_thoughts_splits_on_time_gap():
@@ -86,7 +181,7 @@ def test_group_into_thoughts_splits_on_time_gap():
 
 
 def test_group_into_thoughts_reply_always_starts_new_thought():
-    # Reply arrives within thought_time of the previous message — must still
+    # Reply arrives within thought_time of the previous message - must still
     # break the thread rather than merging.
     messages = [
         {"id": "1", "content": "the last message", "timestamp": "2024-06-28T19:24:14.998-05:00"},
@@ -112,3 +207,38 @@ def test_group_into_thoughts_reply_reference_id_none_when_not_reply():
 
 def test_group_into_thoughts_empty_input():
     assert group_into_thoughts([], thought_time=5) == []
+
+
+def test_group_into_thoughts_mention_handling():
+    # Test that mentions are properly accumulated across messages in a thought
+    messages = [
+        {
+            "id": "1",
+            "content": "Hello @john_doe how are you?",
+            "timestamp": "2023-01-01T00:00:00.000Z",
+            "mentions": [
+                {
+                    "id": "12345",
+                    "name": "john_doe",
+                    "nickname": "JohnD"
+                }
+            ]
+        },
+        {
+            "id": "2",
+            "content": "@jane_smith thanks for the help!",
+            "timestamp": "2023-01-01T00:00:05.000Z",
+            "mentions": [
+                {
+                    "id": "67890",
+                    "name": "jane_smith"
+                    # no nickname
+                }
+            ]
+        },
+    ]
+    thoughts = group_into_thoughts(messages, thought_time=10)
+    assert len(thoughts) == 1
+    assert thoughts[0]["mentions"] == ["@john_doe", "@jane_smith"]
+    assert "@john_doe" in thoughts[0]["text"]
+    assert "@jane_smith" in thoughts[0]["text"]
