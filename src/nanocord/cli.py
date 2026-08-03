@@ -26,7 +26,7 @@ logger = global_logger
 # Create Typer application
 app = typer.Typer(
     name="nanocord",
-    help="Discord chat export and dataset preparation CLI",
+    help="Discord persona SLM CLI: export chat data, train CPT/SFT models, and register a Discord bot",
     no_args_is_help=True,
 )
 
@@ -252,17 +252,17 @@ def dataset_cpt(
     distributed: Optional[bool] = typer.Option(
         None,
         "--distributed",
-        help="Select lines as an even distribution instead of sequentially"
+        help="Select lines as an even distribution instead of sequentially (omit to use the config.yaml value)"
     ),
     reverse_lines: Optional[bool] = typer.Option(
         None,
         "--reverse-lines",
-        help="Reverse the order in which to select lines for the dataset"
+        help="Reverse the order in which to select lines for the dataset (omit to use the config.yaml value)"
     ),
     redownload: Optional[bool] = typer.Option(
         None,
         "--redownload",
-        help="Redownload the Discord chat logs"
+        help="Redownload the Discord chat logs (omit to use the config.yaml value)"
     ),
     config_file: Optional[str] = typer.Option(
         str(CONFIG_PATH),
@@ -411,17 +411,17 @@ def dataset_sft(
     distributed: Optional[bool] = typer.Option(
         None,
         "--distributed",
-        help="Select lines as an even distribution instead of sequentially"
+        help="Select lines as an even distribution instead of sequentially (omit to use the config.yaml value)"
     ),
     reverse_lines: Optional[bool] = typer.Option(
         None,
         "--reverse-lines",
-        help="Reverse the order in which to select lines for the dataset"
+        help="Reverse the order in which to select lines for the dataset (omit to use the config.yaml value)"
     ),
     redownload: Optional[bool] = typer.Option(
         None,
         "--redownload",
-        help="Redownload the Discord chat logs"
+        help="Redownload the Discord chat logs (omit to use the config.yaml value)"
     ),
     config_file: Optional[str] = typer.Option(
         str(CONFIG_PATH),
@@ -692,6 +692,9 @@ def config_set_cmd(
     Set a configuration value.
 
     Supports dot notation for nested keys (e.g., 'dataset.channel_id').
+    Keys not already present in the YAML are created automatically.
+    Valid top-level sections: channel_id, user_id, dataset (with cpt/sft subsections),
+    train (with cpt/sft subsections), bot, output_dir.
     """
     # Load existing config
     if not CONFIG_PATH.exists():
