@@ -16,6 +16,10 @@ from nanocord.paths import CONFIG_PATH
 from nanocord.train.cpt import run_cpt_training
 from nanocord.train.sft import run_sft_training
 
+def _yaml_single_quote(s: str) -> str:
+    """Quote a string for use in YAML as a single-quoted scalar."""
+    return "'" + s.replace("'", "''") + "'"
+
 # Use the global logger
 logger = global_logger
 
@@ -102,6 +106,10 @@ def init(
         show_default=False
     )
 
+    # Escape paths for YAML using single quotes to handle Windows backslashes properly
+    discord_token_yaml = _yaml_single_quote(discord_token)
+    discord_chat_exporter_path_yaml = _yaml_single_quote(discord_chat_exporter_path)
+
     # Create default config content
     default_config = f"""# NanoCord Configuration File
 # This file contains default settings for the nanocord CLI tool.
@@ -116,8 +124,8 @@ user_id: ""
 dataset:
     # Params here are shared by both dataset.cpt and dataset.sft below -
     # redeclare a key inside either one to override it just for that mode.
-    discord_token: "{discord_token}" # Optional here, falls back to DISCORD_BOT_TOKEN env var if left empty
-    discord_chat_exporter_path: "{discord_chat_exporter_path}" # Path to DiscordChatExporter.Cli executable
+    discord_token: {discord_token_yaml} # Optional here, falls back to DISCORD_BOT_TOKEN env var if left empty
+    discord_chat_exporter_path: {discord_chat_exporter_path_yaml} # Path to DiscordChatExporter.Cli executable
     thought_time: 5
     thought_min: 6
     thought_max: null
