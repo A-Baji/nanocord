@@ -498,13 +498,119 @@ def train_cpt(
         "--config",
         help="Path to YAML configuration file (default: user data directory)"
     ),
+    base_model: Optional[str] = typer.Option(
+        None,
+        "--base-model",
+        help="Base model to use for training. One of: smollm3-3b, qwen3-4b, qwen3-4b-instruct, qwen3-1.7b, llama-3.2-3b, qwen2.5-7b"
+    ),
+    load_in_4bit: Optional[bool] = typer.Option(
+        None,
+        "--load-in-4bit",
+        help="Load model in 4-bit precision"
+    ),
+    max_seq_length: Optional[int] = typer.Option(
+        None,
+        "--max-seq-length",
+        help="Maximum sequence length for training"
+    ),
+    lora_r: Optional[int] = typer.Option(
+        None,
+        "--lora-r",
+        help="LoRA rank"
+    ),
+    lora_alpha: Optional[int] = typer.Option(
+        None,
+        "--lora-alpha",
+        help="LoRA alpha parameter"
+    ),
+    lora_dropout: Optional[float] = typer.Option(
+        None,
+        "--lora-dropout",
+        help="LoRA dropout rate"
+    ),
+    learning_rate: Optional[float] = typer.Option(
+        None,
+        "--learning-rate",
+        help="Learning rate for training"
+    ),
+    effective_batch_size: Optional[int] = typer.Option(
+        None,
+        "--effective-batch-size",
+        help="Effective batch size for training"
+    ),
+    per_device_train_batch_size: Optional[int] = typer.Option(
+        None,
+        "--per-device-train-batch-size",
+        help="Per device train batch size"
+    ),
+    num_train_epochs: Optional[int] = typer.Option(
+        None,
+        "--num-train-epochs",
+        help="Number of training epochs"
+    ),
+    eval_split: Optional[float] = typer.Option(
+        None,
+        "--eval-split",
+        help="Fraction of data to use for evaluation"
+    ),
+    early_stopping_patience: Optional[int] = typer.Option(
+        None,
+        "--early-stopping-patience",
+        help="Early stopping patience"
+    ),
+    weight_decay: Optional[float] = typer.Option(
+        None,
+        "--weight-decay",
+        help="Weight decay for training"
+    ),
+    warmup_ratio: Optional[float] = typer.Option(
+        None,
+        "--warmup-ratio",
+        help="Warmup ratio for learning rate scheduler"
+    ),
+    seed: Optional[int] = typer.Option(
+        None,
+        "--seed",
+        help="Random seed for training"
+    ),
+    vram_memory_fraction: Optional[float] = typer.Option(
+        None,
+        "--vram-memory-fraction",
+        help="Fraction of total GPU memory this process is allowed to use (0-1]; lower this if training crashes the system/driver rather than raising a clean OOM error"
+    ),
+    packing: Optional[bool] = typer.Option(
+        None,
+        "--packing",
+        help="Use packing for training"
+    ),
 ):
     """
     Run CPT training on the dataset
     """
 
+    # Prepare CLI arguments for merging
+    cli_args = {
+        "base_model": base_model,
+        "load_in_4bit": load_in_4bit,
+        "max_seq_length": max_seq_length,
+        "lora_r": lora_r,
+        "lora_alpha": lora_alpha,
+        "lora_dropout": lora_dropout,
+        "learning_rate": learning_rate,
+        "effective_batch_size": effective_batch_size,
+        "per_device_train_batch_size": per_device_train_batch_size,
+        "num_train_epochs": num_train_epochs,
+        "eval_split": eval_split,
+        "early_stopping_patience": early_stopping_patience,
+        "weight_decay": weight_decay,
+        "warmup_ratio": warmup_ratio,
+        "seed": seed,
+        "vram_memory_fraction": vram_memory_fraction,
+        "packing": packing,
+    }
+
     # Load and merge configuration - pass "train.cpt" as the section to load
-    merged_config = load_and_merge_config(config_file, {}, "train.cpt")
+    merged_config = load_and_merge_config(config_file, cli_args, "train.cpt")
 
     # Check for CUDA availability before attempting to run training
     import torch
@@ -528,13 +634,119 @@ def train_sft(
         "--config",
         help="Path to YAML configuration file (default: user data directory)"
     ),
+    base_model: Optional[str] = typer.Option(
+        None,
+        "--base-model",
+        help="Base model to use for training. One of: smollm3-3b, qwen3-4b, qwen3-4b-instruct, qwen3-1.7b, llama-3.2-3b, qwen2.5-7b"
+    ),
+    load_in_4bit: Optional[bool] = typer.Option(
+        None,
+        "--load-in-4bit",
+        help="Load model in 4-bit precision"
+    ),
+    max_seq_length: Optional[int] = typer.Option(
+        None,
+        "--max-seq-length",
+        help="Maximum sequence length for training"
+    ),
+    lora_r: Optional[int] = typer.Option(
+        None,
+        "--lora-r",
+        help="LoRA rank"
+    ),
+    lora_alpha: Optional[int] = typer.Option(
+        None,
+        "--lora-alpha",
+        help="LoRA alpha parameter"
+    ),
+    lora_dropout: Optional[float] = typer.Option(
+        None,
+        "--lora-dropout",
+        help="LoRA dropout rate"
+    ),
+    learning_rate: Optional[float] = typer.Option(
+        None,
+        "--learning-rate",
+        help="Learning rate for training"
+    ),
+    effective_batch_size: Optional[int] = typer.Option(
+        None,
+        "--effective-batch-size",
+        help="Effective batch size for training"
+    ),
+    per_device_train_batch_size: Optional[int] = typer.Option(
+        None,
+        "--per-device-train-batch-size",
+        help="Per device train batch size"
+    ),
+    num_train_epochs: Optional[int] = typer.Option(
+        None,
+        "--num-train-epochs",
+        help="Number of training epochs"
+    ),
+    eval_split: Optional[float] = typer.Option(
+        None,
+        "--eval-split",
+        help="Fraction of data to use for evaluation"
+    ),
+    early_stopping_patience: Optional[int] = typer.Option(
+        None,
+        "--early-stopping-patience",
+        help="Early stopping patience"
+    ),
+    weight_decay: Optional[float] = typer.Option(
+        None,
+        "--weight-decay",
+        help="Weight decay for training"
+    ),
+    warmup_ratio: Optional[float] = typer.Option(
+        None,
+        "--warmup-ratio",
+        help="Warmup ratio for learning rate scheduler"
+    ),
+    seed: Optional[int] = typer.Option(
+        None,
+        "--seed",
+        help="Random seed for training"
+    ),
+    vram_memory_fraction: Optional[float] = typer.Option(
+        None,
+        "--vram-memory-fraction",
+        help="Fraction of total GPU memory this process is allowed to use (0-1]; lower this if training crashes the system/driver rather than raising a clean OOM error"
+    ),
+    neftune_noise_alpha: Optional[float] = typer.Option(
+        None,
+        "--neftune-noise-alpha",
+        help="NEFTune - adds noise to embeddings during SFT training, improves output quality/diversity on small instruction datasets; not used for CPT"
+    ),
 ):
     """
     Run SFT training on the CPT checkpoint
     """
 
+    # Prepare CLI arguments for merging
+    cli_args = {
+        "base_model": base_model,
+        "load_in_4bit": load_in_4bit,
+        "max_seq_length": max_seq_length,
+        "lora_r": lora_r,
+        "lora_alpha": lora_alpha,
+        "lora_dropout": lora_dropout,
+        "learning_rate": learning_rate,
+        "effective_batch_size": effective_batch_size,
+        "per_device_train_batch_size": per_device_train_batch_size,
+        "num_train_epochs": num_train_epochs,
+        "eval_split": eval_split,
+        "early_stopping_patience": early_stopping_patience,
+        "weight_decay": weight_decay,
+        "warmup_ratio": warmup_ratio,
+        "seed": seed,
+        "vram_memory_fraction": vram_memory_fraction,
+        "neftune_noise_alpha": neftune_noise_alpha,
+    }
+
     # Load and merge configuration - pass "train.sft" as the section to load
-    merged_config = load_and_merge_config(config_file, {}, "train.sft")
+    merged_config = load_and_merge_config(config_file, cli_args, "train.sft")
 
     # Check for CUDA availability before attempting to run training
     import torch
