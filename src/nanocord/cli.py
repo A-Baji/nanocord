@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, Optional, List
 
 import typer
 import yaml
@@ -872,6 +872,132 @@ def bot_add_preset(
         yaml.dump(config, f, default_flow_style=False, indent=2, allow_unicode=True)
 
     typer.echo(f"Added preset '{name}' to configuration")
+
+
+@bot_app.command("add-command")
+def bot_add_command(
+    name: Optional[str] = typer.Option(None, "--name", help="Name of the command"),
+    description: Optional[str] = typer.Option(None, "--description", help="Description of the command"),
+    model_path: Optional[str] = typer.Option(None, "--model-path", help="Path to the model checkpoint"),
+    stage: Optional[str] = typer.Option(None, "--stage", help="Training stage ('cpt' or 'sft') - used only when --model-path is omitted"),
+    preset: Optional[str] = typer.Option(None, "--preset", help="Name of the preset to use (from config) or 'random'"),
+    preset_pool: Optional[List[str]] = typer.Option(None, "--preset-pool", help="List of preset names to use when --preset is 'random'"),
+    config_file: str = typer.Option(str(CONFIG_PATH), "--config", help="Path to YAML configuration file (default: user data directory)"),
+):
+    """
+    Add a new Discord slash command to the configuration
+    """
+    # Load existing config
+    if not CONFIG_PATH.exists():
+        typer.secho("Error: No configuration file found. Create one first with 'nanocord init'.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    with open(CONFIG_PATH, 'r') as f:
+        config = yaml.safe_load(f) or {}
+
+    # Prompt for name if not provided
+    if name is None:
+        name = typer.prompt("Enter command name")
+        if not name:
+            typer.secho("Error: Command name cannot be empty", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+
+    # Prompt for description if not provided
+    if description is None:
+        description = typer.prompt("Enter command description")
+        if not description:
+            typer.secho("Error: Command description cannot be empty", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+
+    # Validate that either model_path or stage is provided (or both can be None to prompt for them)
+    if model_path is None and stage is None:
+        # Prompt for model path
+        model_path = typer.prompt(
+            "Model path (leave blank to auto-resolve from output_dir/channel_id/user_id)",
+            default="",
+            show_default=False
+        )
+
+        # If user left it blank, prompt for stage
+        if not model_path:
+            while True:
+                stage_input = typer.prompt("Stage ('cpt' or 'sft')")
+                if stage_input in ['cpt', 'sft']:
+                    stage = stage_input
+                    break
+                else:
+                    typer.secho("Error: Stage must be either 'cpt' or 'sft'", fg=typer.colors.RED)
+    elif model_path is not None and stage is not None:
+        # Both provided, which is fine - but validate stage value
+        if stage not in ['cpt', 'sft']:
+            typer.secho("Error: Stage must be either 'cpt' or 'sft'", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+
+    # Validate preset if provided
+    if preset is not None:
+        # Check if preset is "random" or an existing key in config.get("bot", {}).get("presets", {})
+        bot_section = config.get("bot", {})
+        presets = bot_section.get("presets", {})
+
+        if preset != "random" and preset not in presets:
+            available_presets = list(presets.keys())
+            typer.secho(
+                f"Error: Preset '{preset}' not found. Available presets are: {', '.join(available_presets)}",
+                fg=typer.colors.RED
+            )
+            raise typer.Exit(code=1)
+
+        # If preset is "random", validate the preset_pool if provided
+        if preset == "random" and preset_pool is not None:
+            for pool_preset in preset_pool:
+                if pool_preset not in presets:
+                    available_presets = list(presets.keys())
+                    typer.secho(
+                        f"Error: Preset '{pool_preset}' in --preset-pool not found. Available presets are: {', '.join(available_presets)}",
+                        fg=typer.colors.RED
+                    )
+                    raise typer.Exit(code=1)
+
+    # Check if command name already exists
+    bot_section = config.setdefault("bot", {})
+    commands = bot_section.setdefault("commands", [])
+
+    for cmd in commands:
+        if cmd.get("name") == name:
+            typer.secho(
+                f"Error: Command '{name}' already exists. Choose a different name or edit config.yaml directly.",
+                fg=typer.colors.RED
+            )
+            raise typer.Exit(code=1)
+
+    # Build the command dict
+    command = {
+        "name": name,
+        "description": description,
+        "model_path": model_path if model_path else None,
+        "stage": stage,
+        "preset": preset
+    }
+
+    # Add preset_pool only if it's non-empty
+    if preset_pool is not None and len(preset_pool) > 0:
+        command["preset_pool"] = preset_pool
+
+    # Append the new command
+    commands.append(command)
+
+    # Write back to file
+    with open(CONFIG_PATH, 'w') as f:
+        yaml.dump(config, f, default_flow_style=False, indent=2, allow_unicode=True)
+
+    typer.echo(f"Added command '{name}' to configuration")
+
+    # Show a hint about testing the command
+    if model_path:
+        typer.echo(f"To test this command, run: nanocord infer interactive --model-path {model_path}")
+    else:
+        stage_hint = stage or "sft"
+        typer.echo(f"To test this command, run: nanocord infer interactive --stage {stage_hint}")
 
 
 @infer_app.command("interactive")
