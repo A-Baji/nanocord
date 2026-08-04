@@ -188,7 +188,7 @@ bot:
         #   no_repeat_ngram_size: 3
         #   max_new_tokens: 256
     # Registered Discord slash commands. Each entry's model_path may be omitted to
-    # auto-resolve to {output_dir}/models/{user_id}_{channel_id}_{stage}_lora.
+    # auto-resolve to {{output_dir}}/models/{{user_id}}_{{channel_id}}_{{stage}}_lora.
     commands:
         # - name: "ask"
         #   description: "Ask the persona something"
