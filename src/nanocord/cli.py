@@ -986,12 +986,8 @@ def bot_add_command(
 
     typer.echo(f"Added command '{name}' to configuration")
 
-    # Show a hint about testing the command
-    if model_path:
-        typer.echo(f"To test this command, run: nanocord infer interactive --model-path {model_path}")
-    else:
-        stage_hint = stage or "sft"
-        typer.echo(f"To test this command, run: nanocord infer interactive --stage {stage_hint}")
+    # Show a hint about syncing the command
+    typer.echo("Run 'nanocord bot sync' (or 'nanocord bot run') to register it with Discord.")
 
 
 @infer_app.command("interactive")
