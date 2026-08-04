@@ -1341,7 +1341,7 @@ def bot_sync(
         raise typer.Exit(code=1)
 
     # Check for application_id in config
-    application_id = merged_config.get("bot", {}).get("application_id")
+    application_id = merged_config.get("application_id")
     if not application_id:
         typer.secho(
             "Error: Missing 'application_id' in config. Please set it in config.yaml under the 'bot' section.\n"
