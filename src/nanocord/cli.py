@@ -15,6 +15,7 @@ from nanocord.dataset.sft import MissingPersonaNameError
 from nanocord.paths import CONFIG_PATH
 from nanocord.train.cpt import run_cpt_training
 from nanocord.train.sft import run_sft_training
+from nanocord.infer import resolve_checkpoint_path, resolve_preset, load_bot_config_section, generate_response
 
 def _yaml_single_quote(s: str) -> str:
     """Quote a string for use in YAML as a single-quoted scalar."""
@@ -52,6 +53,14 @@ bot_app = typer.Typer(
     help="Manage Discord bot functionality"
 )
 app.add_typer(bot_app, name="bot")
+
+
+# Sub-app for inference commands
+infer_app = typer.Typer(
+    name="infer",
+    help="Test model inference before registering a bot command"
+)
+app.add_typer(infer_app, name="infer")
 
 
 @app.callback(invoke_without_command=True)
@@ -800,6 +809,201 @@ def bot_register(
     except NotImplementedError:
         typer.secho("Error: Bot registration not yet implemented", fg=typer.colors.RED)
         raise typer.Exit(code=1)
+
+
+@infer_app.command("interactive")
+def infer_interactive(
+    model_path: Optional[str] = typer.Option(
+        None,
+        "-m",
+        "--model-path",
+        help="Path to the model checkpoint directory (overrides stage)"
+    ),
+    stage: Optional[str] = typer.Option(
+        None,
+        "--stage",
+        help="Training stage ('cpt' or 'sft') - used only when model-path is not provided"
+    ),
+    preset: Optional[str] = typer.Option(
+        None,
+        "--preset",
+        help="Name of the preset to use (from config) or 'random'"
+    ),
+    config_file: Optional[str] = typer.Option(
+        str(CONFIG_PATH),
+        "--config",
+        help="Path to YAML configuration file (default: user data directory)"
+    ),
+):
+    """
+    Run interactive inference with the model
+    """
+    # Load and merge configuration for scalars (output_dir, channel_id, user_id)
+    merged_config = load_and_merge_config(config_file, {}, "bot")
+
+    # Load bot config section for presets
+    bot_config = load_bot_config_section(config_file)
+
+    # Validate that either model_path or stage is provided, but not both
+    if model_path is None and stage is None:
+        typer.secho(
+            "Error: Either --model-path or --stage must be provided",
+            fg=typer.colors.RED
+        )
+        raise typer.Exit(code=1)
+
+    if model_path is not None and stage is not None:
+        typer.secho(
+            "Error: Cannot specify both --model-path and --stage",
+            fg=typer.colors.RED
+        )
+        raise typer.Exit(code=1)
+
+    # Resolve checkpoint path
+    try:
+        checkpoint_path = resolve_checkpoint_path(merged_config, model_path, stage)
+    except ValueError as e:
+        typer.secho(f"Error resolving checkpoint: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    # Get available presets
+    presets = bot_config.get("presets", {})
+
+    # Loop for interactive input
+    while True:
+        try:
+            user_input = typer.prompt("You")
+            if user_input.lower() in ("exit", "quit"):
+                break
+
+            # Resolve preset (or use default if not provided)
+            if preset is None or preset == "":
+                # Use a default preset if none specified
+                if presets:
+                    preset_name = list(presets.keys())[0]  # Use first preset as default
+                    selected_preset = presets[preset_name]
+                else:
+                    selected_preset = {}
+            else:
+                try:
+                    selected_preset = resolve_preset(presets, preset)
+                except ValueError as e:
+                    typer.secho(f"Error resolving preset: {e}", fg=typer.colors.RED)
+                    raise typer.Exit(code=1)
+
+            # Generate response
+            response = generate_response(checkpoint_path, user_input, selected_preset)
+            typer.echo(response)
+
+        except KeyboardInterrupt:
+            typer.echo("\nExiting interactive mode...")
+            break
+        except Exception as e:
+            typer.secho(f"Error during inference: {e}", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+
+
+@infer_app.command("batch")
+def infer_batch(
+    model_path: Optional[str] = typer.Option(
+        None,
+        "-m",
+        "--model-path",
+        help="Path to the model checkpoint directory (overrides stage)"
+    ),
+    stage: Optional[str] = typer.Option(
+        None,
+        "--stage",
+        help="Training stage ('cpt' or 'sft') - used only when model-path is not provided"
+    ),
+    preset: Optional[str] = typer.Option(
+        None,
+        "--preset",
+        help="Name of the preset to use (from config) or 'random'"
+    ),
+    config_file: Optional[str] = typer.Option(
+        str(CONFIG_PATH),
+        "--config",
+        help="Path to YAML configuration file (default: user data directory)"
+    ),
+    prompt: str = typer.Option(
+        ...,
+        "--prompt",
+        help="Prompt to use for all trials"
+    ),
+    trials: int = typer.Option(
+        5,
+        "--trials",
+        help="Number of trials to run"
+    ),
+):
+    """
+    Run batch inference with the model
+    """
+    # Load and merge configuration for scalars (output_dir, channel_id, user_id)
+    merged_config = load_and_merge_config(config_file, {}, "bot")
+
+    # Load bot config section for presets
+    bot_config = load_bot_config_section(config_file)
+
+    # Validate that either model_path or stage is provided, but not both
+    if model_path is None and stage is None:
+        typer.secho(
+            "Error: Either --model-path or --stage must be provided",
+            fg=typer.colors.RED
+        )
+        raise typer.Exit(code=1)
+
+    if model_path is not None and stage is not None:
+        typer.secho(
+            "Error: Cannot specify both --model-path and --stage",
+            fg=typer.colors.RED
+        )
+        raise typer.Exit(code=1)
+
+    # Resolve checkpoint path
+    try:
+        checkpoint_path = resolve_checkpoint_path(merged_config, model_path, stage)
+    except ValueError as e:
+        typer.secho(f"Error resolving checkpoint: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    # Get available presets
+    presets = bot_config.get("presets", {})
+
+    # Resolve preset once (if it's random, we'll resolve it each trial)
+    if preset is not None and preset != "":
+        try:
+            resolved_preset = resolve_preset(presets, preset)
+        except ValueError as e:
+            typer.secho(f"Error resolving preset: {e}", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+    else:
+        resolved_preset = None
+
+    # Run trials
+    for i in range(trials):
+        try:
+            # Resolve preset for this trial if it's "random"
+            if preset == "random":
+                trial_preset = resolve_preset(presets, "random")
+            elif resolved_preset is not None:
+                trial_preset = resolved_preset
+            else:
+                # Use default if no preset specified
+                if presets:
+                    preset_name = list(presets.keys())[0]  # Use first preset as default
+                    trial_preset = presets[preset_name]
+                else:
+                    trial_preset = {}
+
+            # Generate response
+            response = generate_response(checkpoint_path, prompt, trial_preset)
+            typer.echo(f"[{i+1}/{trials}] {response}")
+
+        except Exception as e:
+            typer.secho(f"Error during trial {i+1}: {e}", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
 
 
 @app.command("pipeline")
