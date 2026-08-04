@@ -6,7 +6,7 @@ import typer
 import yaml
 
 from nanocord import global_logger
-from nanocord.bot.register import register_bot
+from nanocord.bot.register import run_bot, build_command_tree, compute_command_fingerprint, _fingerprint_path
 from nanocord.config import load_and_merge_config
 from nanocord.dataset.cpt import build_cpt_dataset
 from nanocord.dataset.sft import build_sft_dataset
@@ -787,34 +787,6 @@ def train_sft(
         raise e
 
 
-@bot_app.command("register")
-def bot_register(
-    config_file: Optional[str] = typer.Option(
-        str(CONFIG_PATH),
-        "--config",
-        help="Path to YAML configuration file (default: user data directory)"
-    ),
-    force_sync: bool = typer.Option(False, "--force-sync", help="Force re-syncing of commands even if unchanged"),
-    guild_id: Optional[int] = typer.Option(None, "--guild-id", help="Guild ID for guild-specific command registration"),
-):
-    """
-    Register the Discord bot and serve the fine-tuned model
-    """
-
-    # Load and merge configuration - pass "bot" as the section to load
-    merged_config = load_and_merge_config(config_file, {}, "bot")
-
-    try:
-        # Import here to avoid circular imports at module level
-        from nanocord.bot.register import run_bot
-
-        # Call the run_bot function
-        import asyncio
-        asyncio.run(run_bot(merged_config, force_sync, guild_id))
-        typer.echo("Bot registration completed successfully")
-    except NotImplementedError:
-        typer.secho("Error: Bot registration not yet implemented", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
 
 
 @bot_app.command("add-preset")
@@ -1272,15 +1244,125 @@ def pipeline_run(
             typer.echo("SFT training completed successfully")
 
         if not skip_bot:
-            typer.echo("Registering bot...")
+            typer.echo("Running bot...")
             # Load the bot config section
             bot_config = load_and_merge_config(config_file, {}, "bot")
-            register_bot(bot_config)
-            typer.echo("Bot registration completed successfully")
+            run_bot(bot_config)
+            typer.echo("Bot run completed successfully")
 
     except (NotImplementedError, MissingPersonaNameError, ValueError) as e:
         typer.secho(f"Pipeline step failed: {str(e)}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
+
+
+@bot_app.command("run")
+def bot_run(
+    config_file: Optional[str] = typer.Option(
+        str(CONFIG_PATH),
+        "--config",
+        help="Path to YAML configuration file (default: user data directory)"
+    ),
+    force_sync: bool = typer.Option(False, "--force-sync", help="Sync commands to Discord even if the command set hasn't changed"),
+    guild_id: Optional[int] = typer.Option(None, "--guild", help="Discord guild (server) ID to sync commands to instead of globally — syncs instantly, useful while iterating"),
+):
+    """
+    Run the Discord bot and serve the fine-tuned model
+    """
+
+    # Load and merge configuration - pass "bot" as the section to load
+    merged_config = load_and_merge_config(config_file, {}, "bot")
+
+    try:
+        # Call the run_bot function
+        run_bot(merged_config, force_sync, guild_id)
+        typer.echo("Bot run completed successfully")
+    except ValueError as e:
+        typer.secho(f"Error: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+
+@bot_app.command("sync")
+def bot_sync(
+    config_file: Optional[str] = typer.Option(
+        str(CONFIG_PATH),
+        "--config",
+        help="Path to YAML configuration file (default: user data directory)"
+    ),
+    guild_id: Optional[int] = typer.Option(None, "--guild", help="Discord guild (server) ID to sync commands to instead of globally — syncs instantly, useful while iterating"),
+    force: bool = typer.Option(False, "--force", help="Force sync even if command set hasn't changed"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show whether a sync would happen without performing it"),
+):
+    """
+    Sync Discord bot commands to Discord
+    """
+
+    # Load and merge configuration - pass "bot" as the section to load
+    merged_config = load_and_merge_config(config_file, {}, "bot")
+
+    # Load bot configuration (presets and commands)
+    from nanocord.bot.register import load_bot_config_section
+    bot_config = load_bot_config_section(merged_config)
+    commands = bot_config.get("commands", [])
+
+    if not commands:
+        typer.secho("Error: No bot commands registered. Run 'nanocord bot add-command' first.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    # Compute current fingerprint
+    current_fingerprint = compute_command_fingerprint(commands)
+
+    # Read cached fingerprint if it exists
+    fingerprint_file = _fingerprint_path(merged_config)
+    try:
+        import json
+        with open(fingerprint_file, 'r') as f:
+            cached_data = json.load(f)
+            cached_fingerprint = cached_data.get("fingerprint")
+            cached_guild_id = cached_data.get("guild_id")
+    except (FileNotFoundError, json.JSONDecodeError):
+        cached_fingerprint = None
+        cached_guild_id = None
+
+    # Check if sync is needed
+    should_sync = force or (cached_fingerprint != current_fingerprint)
+
+    if dry_run:
+        if should_sync:
+            typer.echo("Sync would occur: command set has changed")
+        else:
+            typer.echo("Sync would be skipped: command set unchanged")
+        raise typer.Exit(code=0)
+    elif should_sync:
+        # Build command tree to get the commands
+        from nanocord.bot.register import build_command_tree
+        tree = build_command_tree(commands, merged_config)
+
+        # Create a minimal Discord client for syncing (without starting event loop)
+        import discord
+        intents = discord.Intents.default()
+        client = discord.Client(intents=intents)
+        tree._client = client
+
+        try:
+            # Sync commands with Discord - this will be run in an asyncio context by the function itself
+            # We need to avoid importing asyncio here as it's already handled within run_bot
+            import asyncio
+            synced = asyncio.run(tree.sync(guild=discord.Object(id=guild_id) if guild_id else None))
+
+            # Save new fingerprint
+            sync_data = {
+                "fingerprint": current_fingerprint,
+                "guild_id": guild_id
+            }
+            with open(fingerprint_file, 'w') as f:
+                json.dump(sync_data, f)
+
+            typer.echo(f"Synced {len(synced)} commands to {'guild' if guild_id else 'global'}")
+        except Exception as e:
+            typer.secho(f"Error syncing commands: {e}", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+    else:
+        typer.echo("Command set unchanged, skipping sync")
 
 
 # Create a sub-app for config commands
