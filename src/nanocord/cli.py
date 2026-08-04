@@ -1279,7 +1279,17 @@ def pipeline_run(
             typer.echo("Running bot...")
             # Load the bot config section
             bot_config = load_and_merge_config(config_file, {}, "bot")
-            run_bot(bot_config)
+            # Load presets and commands for the run_bot function
+            from nanocord.bot.register import load_bot_config_section
+            bot_full_config = load_bot_config_section(config_file)
+            commands = bot_full_config.get("commands", [])
+            presets = bot_full_config.get("presets", {})
+
+            if not commands:
+                typer.secho("Error: No bot commands registered. Run 'nanocord bot add-command' first.", fg=typer.colors.RED)
+                raise typer.Exit(code=1)
+
+            asyncio.run(run_bot(bot_config, presets, commands))
             typer.echo("Bot run completed successfully")
 
     except (NotImplementedError, MissingPersonaNameError, ValueError) as e:
@@ -1304,9 +1314,19 @@ def bot_run(
     # Load and merge configuration - pass "bot" as the section to load
     merged_config = load_and_merge_config(config_file, {}, "bot")
 
+    # Load bot configuration (presets and commands)
+    from nanocord.bot.register import load_bot_config_section
+    bot_config = load_bot_config_section(config_file)
+    commands = bot_config.get("commands", [])
+    presets = bot_config.get("presets", {})
+
+    if not commands:
+        typer.secho("Error: No bot commands registered. Run 'nanocord bot add-command' first.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
     try:
         # Call the run_bot function with asyncio.run to properly await the async function
-        asyncio.run(run_bot(merged_config, force_sync, guild_id))
+        asyncio.run(run_bot(merged_config, presets, commands, force_sync, guild_id))
         typer.echo("Bot run completed successfully")
     except ValueError as e:
         typer.secho(f"Error: {e}", fg=typer.colors.RED)
@@ -1335,6 +1355,7 @@ def bot_sync(
     from nanocord.bot.register import load_bot_config_section
     bot_config = load_bot_config_section(config_file)
     commands = bot_config.get("commands", [])
+    presets = bot_config.get("presets", {})
 
     if not commands:
         typer.secho("Error: No bot commands registered. Run 'nanocord bot add-command' first.", fg=typer.colors.RED)
@@ -1365,7 +1386,7 @@ def bot_sync(
 
         # Create a client with application_id explicitly provided to avoid login requirement
         client = discord.Client(intents=intents, application_id=application_id)
-        tree = build_command_tree(commands, merged_config, client)
+        tree = build_command_tree(commands, presets, merged_config, client)
 
         try:
             # Use the shared sync_if_needed function to perform the actual sync

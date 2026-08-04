@@ -143,6 +143,7 @@ async def sync_if_needed(
 
 def build_command_tree(
     bot_commands_config: List[Dict],
+    presets: Dict,
     config: Dict,
     client: "discord.Client"
 ) -> "discord.app_commands.CommandTree":
@@ -151,16 +152,13 @@ def build_command_tree(
 
     Args:
         bot_commands_config: List of command configurations
+        presets: Preset configurations loaded from the config file
         config: Full configuration dictionary
         client: The discord.Client instance to associate with the command tree
 
     Returns:
         discord.app_commands.CommandTree instance with registered commands
     """
-    # Load presets from the config
-    bot_config = load_bot_config_section(config)
-    presets = bot_config.get("presets", {})
-
     # Create a new command tree with the client directly
     tree = discord.app_commands.CommandTree(client)
 
@@ -236,6 +234,8 @@ def build_command_tree(
 
 async def run_bot(
     config: Dict,
+    presets: Dict,
+    commands: List[Dict],
     force_sync: bool = False,
     guild_id: Optional[int] = None
 ) -> None:
@@ -244,24 +244,17 @@ async def run_bot(
 
     Args:
         config: Merged configuration dictionary containing bot settings
+        presets: Preset configurations loaded from the config file
+        commands: List of command configurations
         force_sync: Whether to force re-syncing of commands even if unchanged
         guild_id: Optional guild ID for guild-specific command registration
     """
-    # Load bot configuration (presets and commands)
-    # Note: load_bot_config_section expects a config file path, not a loaded config dict
-    # We'll use the default config file location since we don't have access to the original file path here
-    bot_config = load_bot_config_section(None)  # This will use default config file
-    commands = bot_config.get("commands", [])
-
-    if not commands:
-        raise ValueError("No bot commands registered. Run 'nanocord bot add-command' first.")
-
     # Create Discord client
     intents = discord.Intents.default()
     bot = discord.Client(intents=intents)
 
     # Build command tree
-    tree = build_command_tree(commands, config, bot)
+    tree = build_command_tree(commands, presets, config, bot)
 
     @bot.event
     async def on_ready():
