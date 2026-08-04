@@ -113,6 +113,12 @@ async def sync_if_needed(
 
     if should_sync:
         try:
+            # When guild_id is provided, we need to copy global commands to the guild first
+            # since CommandTree.sync() for a specific guild only syncs commands explicitly
+            # present in that guild's local command list, not global commands
+            if guild_id:
+                await tree.copy_global_to(guild=discord.Object(id=guild_id))
+
             # Sync commands with Discord - this now works without application_id
             synced = await tree.sync(guild=discord.Object(id=guild_id) if guild_id else None)
 
