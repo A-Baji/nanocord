@@ -1374,7 +1374,29 @@ def bot_sync(
         # Create a client WITHOUT application_id - we'll login first and let it populate
         client = discord.Client(intents=intents)
 
-        # Login to Discord first (this only authenticates over HTTP, not opening gateway connection)
+        # Login → sync → close sequence in a single async function to ensure all steps use the same event loop
+        async def _sync_flow():
+            try:
+                # Login to get application_id populated - this is fast and only authenticates over HTTP
+                await client.login(discord_token)
+
+                # Build command tree with the client that now has application_id
+                tree = build_command_tree(commands, presets, merged_config, client)
+
+                # Use the shared sync_if_needed function to perform the actual sync
+                sync_performed = await sync_if_needed(tree, commands, merged_config, force, guild_id)
+
+                if sync_performed:
+                    typer.echo(f"Synced commands to {'guild' if guild_id else 'global'}")
+                else:
+                    typer.echo("Command set unchanged, skipping sync")
+
+                return sync_performed
+            finally:
+                # Close the client connection - must be in the same event loop as login
+                await client.close()
+
+        # Login → sync → close sequence in a single event loop
         discord_token = merged_config.get("discord_token") or os.getenv("DISCORD_BOT_TOKEN")
         if not discord_token:
             typer.secho(
@@ -1385,28 +1407,11 @@ def bot_sync(
             raise typer.Exit(code=1)
 
         try:
-            # Login to get application_id populated - this is fast and only authenticates over HTTP
-            asyncio.run(client.login(discord_token))
-
-            # Build command tree with the client that now has application_id
-            tree = build_command_tree(commands, presets, merged_config, client)
-
-            # Use the shared sync_if_needed function to perform the actual sync
-            sync_performed = asyncio.run(sync_if_needed(tree, commands, merged_config, force, guild_id))
-
-            if sync_performed:
-                typer.echo(f"Synced commands to {'guild' if guild_id else 'global'}")
-            else:
-                typer.echo("Command set unchanged, skipping sync")
+            # Run the entire flow in one event loop to avoid cross-loop failures
+            sync_performed = asyncio.run(_sync_flow())
         except Exception as e:
             typer.secho(f"Error syncing commands: {e}", fg=typer.colors.RED)
             raise typer.Exit(code=1)
-        finally:
-            # Close the client connection
-            try:
-                asyncio.run(client.close())
-            except:
-                pass  # Ignore errors during close
 
 
 # Create a sub-app for config commands
