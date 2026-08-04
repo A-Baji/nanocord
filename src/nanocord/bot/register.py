@@ -1,9 +1,7 @@
 """
 Bot registration and serving functions.
 
-Note: This module handles the registration of a single Discord bot command that
-uses the persona model, not multiple commands like /oracle or /adib which were
-part of an abandoned from-scratch plan.
+This module handles the registration of Discord slash commands that use a persona model.
 """
 
 import json
@@ -115,7 +113,7 @@ async def sync_if_needed(
 
     if should_sync:
         try:
-            # Sync commands with Discord
+            # Sync commands with Discord - this now works without application_id
             synced = await tree.sync(guild=discord.Object(id=guild_id) if guild_id else None)
 
             # Save new fingerprint
@@ -249,7 +247,7 @@ async def run_bot(
         force_sync: Whether to force re-syncing of commands even if unchanged
         guild_id: Optional guild ID for guild-specific command registration
     """
-    # Create Discord client
+    # Create Discord client - no application_id needed anymore
     intents = discord.Intents.default()
     bot = discord.Client(intents=intents)
 

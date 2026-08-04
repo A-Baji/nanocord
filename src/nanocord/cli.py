@@ -202,9 +202,6 @@ bot:
         #   stage: "sft"  # cpt or sft, used only when model_path is omitted
         #   preset: "example_preset"  # a name from bot.presets, or "random"
         #   preset_pool: []  # list of preset names; only used when preset is "random". Empty/omitted = all presets.
-    # Application ID required for nanocord bot sync to work without full login
-    # This can be found on the Discord Developer Portal for your bot
-    application_id: ""  # Set this value to your bot's application ID from Discord Developer Portal
 output_dir: null  # Optional - overrides the base directory for ALL generated output (datasets, model checkpoints, raw Discord exports, Unsloth cache/temp dirs); config.yaml's own location is NOT affected
 """
 
@@ -1361,16 +1358,6 @@ def bot_sync(
         typer.secho("Error: No bot commands registered. Run 'nanocord bot add-command' first.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
-    # Check for application_id in config
-    application_id = merged_config.get("application_id")
-    if not application_id:
-        typer.secho(
-            "Error: Missing 'application_id' in config. Please set it in config.yaml under the 'bot' section.\n"
-            "This ID can be found on the Discord Developer Portal for your bot.",
-            fg=typer.colors.RED
-        )
-        raise typer.Exit(code=1)
-
     if dry_run:
         # Use the shared helper function for dry-run check
         should_sync = has_command_set_changed(commands, merged_config, force)
@@ -1384,11 +1371,26 @@ def bot_sync(
         import discord
         intents = discord.Intents.default()
 
-        # Create a client with application_id explicitly provided to avoid login requirement
-        client = discord.Client(intents=intents, application_id=application_id)
-        tree = build_command_tree(commands, presets, merged_config, client)
+        # Create a client WITHOUT application_id - we'll login first and let it populate
+        client = discord.Client(intents=intents)
+
+        # Login to Discord first (this only authenticates over HTTP, not opening gateway connection)
+        discord_token = merged_config.get("discord_token") or os.getenv("DISCORD_BOT_TOKEN")
+        if not discord_token:
+            typer.secho(
+                "Error: No Discord bot token provided. Please set it in config.yaml or "
+                "as the DISCORD_BOT_TOKEN environment variable.",
+                fg=typer.colors.RED
+            )
+            raise typer.Exit(code=1)
 
         try:
+            # Login to get application_id populated - this is fast and only authenticates over HTTP
+            asyncio.run(client.login(discord_token))
+
+            # Build command tree with the client that now has application_id
+            tree = build_command_tree(commands, presets, merged_config, client)
+
             # Use the shared sync_if_needed function to perform the actual sync
             sync_performed = asyncio.run(sync_if_needed(tree, commands, merged_config, force, guild_id))
 
@@ -1399,6 +1401,12 @@ def bot_sync(
         except Exception as e:
             typer.secho(f"Error syncing commands: {e}", fg=typer.colors.RED)
             raise typer.Exit(code=1)
+        finally:
+            # Close the client connection
+            try:
+                asyncio.run(client.close())
+            except:
+                pass  # Ignore errors during close
 
 
 # Create a sub-app for config commands
