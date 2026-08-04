@@ -55,6 +55,87 @@ def _fingerprint_path(config: Dict) -> Path:
     return resolve_output_dir(config) / "bot_sync_fingerprint.json"
 
 
+def has_command_set_changed(commands: List[Dict], config: Dict, force: bool = False) -> bool:
+    """
+    Check if the command set has changed compared to the cached fingerprint.
+
+    Args:
+        commands: List of command dictionaries
+        config: Configuration dictionary
+        force: Whether to force sync regardless of changes
+
+    Returns:
+        True if the command set has changed or force is True, False otherwise
+    """
+    # Compute current fingerprint
+    current_fingerprint = compute_command_fingerprint(commands)
+
+    # Read cached fingerprint if it exists
+    fingerprint_file = _fingerprint_path(config)
+    try:
+        with open(fingerprint_file, 'r') as f:
+            cached_data = json.load(f)
+            cached_fingerprint = cached_data.get("fingerprint")
+            cached_guild_id = cached_data.get("guild_id")
+    except (FileNotFoundError, json.JSONDecodeError):
+        cached_fingerprint = None
+        cached_guild_id = None
+
+    # Check if sync is needed
+    return force or (cached_fingerprint != current_fingerprint)
+
+
+async def sync_if_needed(
+    tree: "discord.app_commands.CommandTree",
+    commands: List[Dict],
+    config: Dict,
+    force_sync: bool = False,
+    guild_id: Optional[int] = None
+) -> bool:
+    """
+    Sync Discord commands if the command set has changed.
+
+    Args:
+        tree: The command tree to sync
+        commands: List of command dictionaries
+        config: Configuration dictionary
+        force_sync: Whether to force re-syncing of commands even if unchanged
+        guild_id: Optional guild ID for guild-specific command registration
+
+    Returns:
+        True if a sync occurred, False if skipped
+    """
+    # Check if sync is needed using the shared helper function
+    should_sync = has_command_set_changed(commands, config, force_sync)
+
+    if should_sync:
+        try:
+            # Sync commands with Discord
+            synced = await tree.sync(guild=discord.Object(id=guild_id) if guild_id else None)
+
+            # Save new fingerprint
+            current_fingerprint = compute_command_fingerprint(commands)
+            sync_data = {
+                "fingerprint": current_fingerprint,
+                "guild_id": guild_id
+            }
+            with open(_fingerprint_path(config), 'w') as f:
+                json.dump(sync_data, f)
+
+            global_logger.info(
+                f"Synced {len(synced)} commands to {'guild' if guild_id else 'global'}"
+            )
+            return True
+        except Exception as e:
+            global_logger.exception("Failed to sync commands with Discord")
+            raise
+    else:
+        global_logger.info(
+            "Command set unchanged, skipping sync"
+        )
+        return False
+
+
 def build_command_tree(
     bot_commands_config: List[Dict],
     config: Dict
@@ -164,46 +245,7 @@ async def run_bot(
 
     @bot.event
     async def on_ready():
-        # Compute current fingerprint
-        current_fingerprint = compute_command_fingerprint(commands)
-
-        # Read cached fingerprint if it exists
-        fingerprint_file = _fingerprint_path(config)
-        try:
-            with open(fingerprint_file, 'r') as f:
-                cached_data = json.load(f)
-                cached_fingerprint = cached_data.get("fingerprint")
-                cached_guild_id = cached_data.get("guild_id")
-        except (FileNotFoundError, json.JSONDecodeError):
-            cached_fingerprint = None
-            cached_guild_id = None
-
-        # Check if sync is needed
-        should_sync = force_sync or (cached_fingerprint != current_fingerprint)
-
-        if should_sync:
-            try:
-                # Sync commands with Discord
-                synced = await tree.sync(guild=discord.Object(id=guild_id) if guild_id else None)
-
-                # Save new fingerprint
-                sync_data = {
-                    "fingerprint": current_fingerprint,
-                    "guild_id": guild_id
-                }
-                with open(fingerprint_file, 'w') as f:
-                    json.dump(sync_data, f)
-
-                global_logger.info(
-                    f"Synced {len(synced)} commands to {'guild' if guild_id else 'global'}"
-                )
-            except Exception as e:
-                global_logger.exception("Failed to sync commands with Discord")
-                raise
-        else:
-            global_logger.info(
-                "Command set unchanged, skipping sync"
-            )
+        await sync_if_needed(tree, commands, config, force_sync, guild_id)
 
     # Run the bot with token fallback logic
     discord_token = config.get("discord_token") or os.getenv("DISCORD_BOT_TOKEN")

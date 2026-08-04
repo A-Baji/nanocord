@@ -4,9 +4,10 @@ from typing import Annotated, Optional, List
 
 import typer
 import yaml
+import asyncio
 
 from nanocord import global_logger
-from nanocord.bot.register import run_bot, build_command_tree, compute_command_fingerprint, _fingerprint_path
+from nanocord.bot.register import run_bot, build_command_tree, compute_command_fingerprint, _fingerprint_path, sync_if_needed, has_command_set_changed
 from nanocord.config import load_and_merge_config
 from nanocord.dataset.cpt import build_cpt_dataset
 from nanocord.dataset.sft import build_sft_dataset
@@ -1273,8 +1274,8 @@ def bot_run(
     merged_config = load_and_merge_config(config_file, {}, "bot")
 
     try:
-        # Call the run_bot function
-        run_bot(merged_config, force_sync, guild_id)
+        # Call the run_bot function with asyncio.run to properly await the async function
+        asyncio.run(run_bot(merged_config, force_sync, guild_id))
         typer.echo("Bot run completed successfully")
     except ValueError as e:
         typer.secho(f"Error: {e}", fg=typer.colors.RED)
@@ -1308,33 +1309,16 @@ def bot_sync(
         typer.secho("Error: No bot commands registered. Run 'nanocord bot add-command' first.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
-    # Compute current fingerprint
-    current_fingerprint = compute_command_fingerprint(commands)
-
-    # Read cached fingerprint if it exists
-    fingerprint_file = _fingerprint_path(merged_config)
-    try:
-        import json
-        with open(fingerprint_file, 'r') as f:
-            cached_data = json.load(f)
-            cached_fingerprint = cached_data.get("fingerprint")
-            cached_guild_id = cached_data.get("guild_id")
-    except (FileNotFoundError, json.JSONDecodeError):
-        cached_fingerprint = None
-        cached_guild_id = None
-
-    # Check if sync is needed
-    should_sync = force or (cached_fingerprint != current_fingerprint)
-
     if dry_run:
+        # Use the shared helper function for dry-run check
+        should_sync = has_command_set_changed(commands, merged_config, force)
         if should_sync:
             typer.echo("Sync would occur: command set has changed")
         else:
             typer.echo("Sync would be skipped: command set unchanged")
         raise typer.Exit(code=0)
-    elif should_sync:
+    else:
         # Build command tree to get the commands
-        from nanocord.bot.register import build_command_tree
         tree = build_command_tree(commands, merged_config)
 
         # Create a minimal Discord client for syncing (without starting event loop)
@@ -1344,25 +1328,16 @@ def bot_sync(
         tree._client = client
 
         try:
-            # Sync commands with Discord - this will be run in an asyncio context by the function itself
-            # We need to avoid importing asyncio here as it's already handled within run_bot
-            import asyncio
-            synced = asyncio.run(tree.sync(guild=discord.Object(id=guild_id) if guild_id else None))
+            # Use the shared sync_if_needed function to perform the actual sync
+            sync_performed = asyncio.run(sync_if_needed(tree, commands, merged_config, force, guild_id))
 
-            # Save new fingerprint
-            sync_data = {
-                "fingerprint": current_fingerprint,
-                "guild_id": guild_id
-            }
-            with open(fingerprint_file, 'w') as f:
-                json.dump(sync_data, f)
-
-            typer.echo(f"Synced {len(synced)} commands to {'guild' if guild_id else 'global'}")
+            if sync_performed:
+                typer.echo(f"Synced commands to {'guild' if guild_id else 'global'}")
+            else:
+                typer.echo("Command set unchanged, skipping sync")
         except Exception as e:
             typer.secho(f"Error syncing commands: {e}", fg=typer.colors.RED)
             raise typer.Exit(code=1)
-    else:
-        typer.echo("Command set unchanged, skipping sync")
 
 
 # Create a sub-app for config commands
