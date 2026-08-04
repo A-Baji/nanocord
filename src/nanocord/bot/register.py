@@ -163,28 +163,29 @@ def build_command_tree(
     # Create a new command tree with the client directly
     tree = discord.app_commands.CommandTree(client)
 
-    for cmd_config in bot_commands_config:
-        # Extract command parameters
-        name = cmd_config["name"]
-        description = cmd_config["description"]
+    def _make_command_callback(cmd_config: Dict, presets: Dict):
+        """
+        Factory function to create command callback functions with proper type annotations.
 
-        # Create the command callback function with proper closure capture
-        @tree.command(
-            name=name,
-            description=description
-        )
-        async def _command_callback(interaction: discord.Interaction, prompt: str, _cmd_config=cmd_config, _presets=presets):
+        Args:
+            cmd_config: Command configuration dictionary
+            presets: Preset configurations
+
+        Returns:
+            Async callback function for the Discord command
+        """
+        async def callback(interaction: discord.Interaction, prompt: str):
             try:
                 # Resolve checkpoint path
                 model_path = resolve_checkpoint_path(
                     config,
-                    _cmd_config.get("model_path"),
-                    _cmd_config.get("stage")
+                    cmd_config.get("model_path"),
+                    cmd_config.get("stage")
                 )
 
                 # Resolve preset
-                preset_name = _cmd_config.get("preset", "default")
-                selected_preset = resolve_preset(_presets, preset_name, _cmd_config.get("preset_pool"))
+                preset_name = cmd_config.get("preset", "default")
+                selected_preset = resolve_preset(presets, preset_name, cmd_config.get("preset_pool"))
 
                 # Generate response
                 response = generate_response(model_path, prompt, selected_preset)
@@ -202,6 +203,17 @@ def build_command_tree(
                 # Send a user-friendly error message
                 error_msg = "Sorry, I encountered an error processing your request. Please try again."
                 await interaction.response.send_message(error_msg)
+
+        return callback
+
+    for cmd_config in bot_commands_config:
+        # Extract command parameters
+        name = cmd_config["name"]
+        description = cmd_config["description"]
+
+        # Create the command callback function with proper closure capture using factory
+        callback = _make_command_callback(cmd_config, presets)
+        tree.command(name=name, description=description)(callback)
 
     return tree
 
