@@ -17,6 +17,7 @@ dependencies = [
     "appdirs>=1.4.4",
     "typer>=0.27.0",
     "PyYAML>=6.0.3",
+    "ruamel.yaml>=0.18",
     "emoji>=2.0.0"
 ]
 

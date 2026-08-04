@@ -5,6 +5,7 @@ from typing import Annotated, Optional, List
 import typer
 import yaml
 import asyncio
+import ruamel.yaml
 
 from nanocord import global_logger
 from nanocord.bot.register import run_bot, build_command_tree, compute_command_fingerprint, _fingerprint_path, sync_if_needed, has_command_set_changed
@@ -21,6 +22,11 @@ from nanocord.infer import resolve_checkpoint_path, resolve_preset, load_bot_con
 def _yaml_single_quote(s: str) -> str:
     """Quote a string for use in YAML as a single-quoted scalar."""
     return "'" + s.replace("'", "''") + "'"
+
+# Create a ruamel.yaml instance for round-trip editing
+_yaml_rt = ruamel.yaml.YAML(typ='rt')
+_yaml_rt.indent(mapping=2, sequence=4, offset=2)
+_yaml_rt.preserve_quotes = True
 
 # Use the global logger
 logger = global_logger
@@ -811,7 +817,7 @@ def bot_add_preset(
         raise typer.Exit(code=1)
 
     with open(CONFIG_PATH, 'r') as f:
-        config = yaml.safe_load(f) or {}
+        config = _yaml_rt.load(f) or {}
 
     # Prompt for name if not provided
     if name is None:
@@ -835,7 +841,7 @@ def bot_add_preset(
 
     # Check if preset already exists
     bot_section = config.setdefault("bot", {})
-    presets = bot_section.setdefault("presets", {})
+    presets = bot_section.get("presets") or {}
 
     if name in presets:
         typer.secho(f"Error: preset '{name}' already exists. Choose a different name or edit config.yaml directly.", fg=typer.colors.RED)
@@ -850,8 +856,11 @@ def bot_add_preset(
     }
 
     # Write back to file
+    bot_section["presets"] = presets
+
+    # Write back to file using ruamel.yaml for round-trip preservation
     with open(CONFIG_PATH, 'w') as f:
-        yaml.dump(config, f, default_flow_style=False, indent=2, allow_unicode=True)
+        _yaml_rt.dump(config, f)
 
     typer.echo(f"Added preset '{name}' to configuration")
 
@@ -875,7 +884,7 @@ def bot_add_command(
         raise typer.Exit(code=1)
 
     with open(CONFIG_PATH, 'r') as f:
-        config = yaml.safe_load(f) or {}
+        config = _yaml_rt.load(f) or {}
 
     # Prompt for name if not provided
     if name is None:
@@ -942,7 +951,7 @@ def bot_add_command(
 
     # Check if command name already exists
     bot_section = config.setdefault("bot", {})
-    commands = bot_section.setdefault("commands", [])
+    commands = bot_section.get("commands") or []
 
     for cmd in commands:
         if cmd.get("name") == name:
@@ -969,8 +978,11 @@ def bot_add_command(
     commands.append(command)
 
     # Write back to file
+    bot_section["commands"] = commands
+
+    # Write back to file using ruamel.yaml for round-trip preservation
     with open(CONFIG_PATH, 'w') as f:
-        yaml.dump(config, f, default_flow_style=False, indent=2, allow_unicode=True)
+        _yaml_rt.dump(config, f)
 
     typer.echo(f"Added command '{name}' to configuration")
 
@@ -1419,9 +1431,9 @@ def config_set_cmd(
 
     current[keys[-1]] = parsed_value
 
-    # Write back to file
+    # Write back to file using ruamel.yaml for round-trip preservation
     with open(CONFIG_PATH, 'w') as f:
-        yaml.dump(config, f, default_flow_style=False, indent=2, allow_unicode=True)
+        _yaml_rt.dump(config, f)
 
     typer.echo(f"Set {key} = {value}")
 
