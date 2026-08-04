@@ -169,6 +169,10 @@ def build_command_tree(
         description = cmd_config["description"]
 
         # Create the command callback function with proper closure capture
+        @tree.command(
+            name=name,
+            description=description
+        )
         async def _command_callback(interaction: discord.Interaction, prompt: str, _cmd_config=cmd_config, _presets=presets):
             try:
                 # Resolve checkpoint path
@@ -198,15 +202,6 @@ def build_command_tree(
                 # Send a user-friendly error message
                 error_msg = "Sorry, I encountered an error processing your request. Please try again."
                 await interaction.response.send_message(error_msg)
-
-        # Register the command using tree.command() as a function call (not decorator)
-        # This approach is used to avoid issues with decorators and allows for dynamic command registration
-        @tree.command(
-            name=name,
-            description=description
-        )
-        async def _command_callback_with_prompt(interaction: discord.Interaction, prompt: str):
-            await _command_callback(interaction, prompt)
 
     return tree
 
