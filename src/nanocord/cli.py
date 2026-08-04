@@ -1082,7 +1082,7 @@ def infer_interactive(
                 response = generate_response(model, tokenizer, user_input, selected_preset)
                 typer.echo(response)
 
-            except KeyboardInterrupt:
+            except (KeyboardInterrupt, typer.Abort):
                 typer.echo("\nExiting.")
                 raise typer.Exit(code=0)
             except Exception as e:
@@ -1090,7 +1090,7 @@ def infer_interactive(
                 import traceback
                 traceback.print_exc()
                 raise typer.Exit(code=1)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, typer.Abort):
         typer.echo("\nExiting.")
         raise typer.Exit(code=0)
 
