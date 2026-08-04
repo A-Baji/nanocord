@@ -170,7 +170,22 @@ train:
         neftune_noise_alpha: 5 # NEFTune - adds noise to embeddings during SFT training, improves output quality/diversity on small instruction datasets; not used for CPT
 
 bot:
-    # Placeholder for bot config
+    # Named generation-parameter presets, referenced by name from bot.commands below.
+    presets:
+        # example_preset:
+        #   temperature: 0.5
+        #   repetition_penalty: 1.18
+        #   no_repeat_ngram_size: 3
+        #   max_new_tokens: 256
+    # Registered Discord slash commands. Each entry's model_path may be omitted to
+    # auto-resolve to {output_dir}/models/{user_id}_{channel_id}_{stage}_lora.
+    commands:
+        # - name: "ask"
+        #   description: "Ask the persona something"
+        #   model_path: null
+        #   stage: "sft"  # cpt or sft, used only when model_path is omitted
+        #   preset: "example_preset"  # a name from bot.presets, or "random"
+        #   preset_pool: []  # list of preset names; only used when preset is "random". Empty/omitted = all presets.
 output_dir: null  # Optional - overrides the base directory for ALL generated output (datasets, model checkpoints, raw Discord exports, Unsloth cache/temp dirs); config.yaml's own location is NOT affected
 """
 

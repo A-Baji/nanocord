@@ -9,6 +9,23 @@ from typing import Any, Dict, Optional
 import yaml
 
 
+def load_raw_config(yaml_path: Optional[str]) -> Dict[str, Any]:
+    """
+    Load configuration from a YAML file without flattening or merging.
+
+    Args:
+        yaml_path: Path to the YAML config file (optional)
+
+    Returns:
+        Dictionary with the full unflattened config data, or empty dict if file doesn't exist or yaml_path is None
+    """
+    if not yaml_path or not os.path.exists(yaml_path):
+        return {}
+
+    with open(yaml_path, 'r') as f:
+        return yaml.safe_load(f) or {}
+
+
 def load_and_merge_config(yaml_path: Optional[str], cli_args: Dict[str, Any], section: str = "dataset") -> Dict[str, Any]:
     """
     Load configuration from a YAML file and merge with CLI arguments.
