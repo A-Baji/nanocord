@@ -1075,8 +1075,8 @@ def infer_interactive(
             typer.echo(response)
 
         except KeyboardInterrupt:
-            typer.echo("\nExiting interactive mode...")
-            break
+            typer.echo("\nExiting.")
+            raise typer.Exit(code=0)
         except Exception as e:
             typer.secho(f"Error during inference: {e}", fg=typer.colors.RED)
             raise typer.Exit(code=1)
