@@ -17,7 +17,7 @@ from nanocord.dataset.sft import MissingPersonaNameError
 from nanocord.paths import CONFIG_PATH
 from nanocord.train.cpt import run_cpt_training
 from nanocord.train.sft import run_sft_training
-from nanocord.infer import resolve_checkpoint_path, resolve_preset, load_bot_config_section, generate_response
+from nanocord.infer import resolve_checkpoint_path, resolve_preset, load_bot_config_section, generate_response, load_model
 
 def _yaml_single_quote(s: str) -> str:
     """Quote a string for use in YAML as a single-quoted scalar."""
@@ -1333,7 +1333,7 @@ def bot_sync(
 
     # Load bot configuration (presets and commands)
     from nanocord.bot.register import load_bot_config_section
-    bot_config = load_bot_config_section(merged_config)
+    bot_config = load_bot_config_section(config_file)
     commands = bot_config.get("commands", [])
 
     if not commands:

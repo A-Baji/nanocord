@@ -248,7 +248,9 @@ async def run_bot(
         guild_id: Optional guild ID for guild-specific command registration
     """
     # Load bot configuration (presets and commands)
-    bot_config = load_bot_config_section(config)
+    # Note: load_bot_config_section expects a config file path, not a loaded config dict
+    # We'll use the default config file location since we don't have access to the original file path here
+    bot_config = load_bot_config_section(None)  # This will use default config file
     commands = bot_config.get("commands", [])
 
     if not commands:
