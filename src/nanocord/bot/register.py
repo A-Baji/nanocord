@@ -168,19 +168,19 @@ def build_command_tree(
         name = cmd_config["name"]
         description = cmd_config["description"]
 
-        # Create the command callback function
-        async def command_callback(interaction: discord.Interaction, prompt: str = ""):
+        # Create the command callback function with proper closure capture
+        async def _command_callback(interaction: discord.Interaction, prompt: str, _cmd_config=cmd_config, _presets=presets):
             try:
                 # Resolve checkpoint path
                 model_path = resolve_checkpoint_path(
                     config,
-                    cmd_config.get("model_path"),
-                    cmd_config.get("stage")
+                    _cmd_config.get("model_path"),
+                    _cmd_config.get("stage")
                 )
 
                 # Resolve preset
-                preset_name = cmd_config.get("preset", "default")
-                selected_preset = resolve_preset(presets, preset_name, cmd_config.get("preset_pool"))
+                preset_name = _cmd_config.get("preset", "default")
+                selected_preset = resolve_preset(_presets, preset_name, _cmd_config.get("preset_pool"))
 
                 # Generate response
                 response = generate_response(model_path, prompt, selected_preset)
@@ -203,18 +203,10 @@ def build_command_tree(
         # This approach is used to avoid issues with decorators and allows for dynamic command registration
         @tree.command(
             name=name,
-            description=description,
-            options=[
-                discord.app_commands.Option(
-                    name="prompt",
-                    description="Your message to the persona",
-                    type=discord.AppCommandOptionType.string,
-                    required=True
-                )
-            ]
+            description=description
         )
-        async def _command_callback(interaction: discord.Interaction, prompt: str = ""):
-            await command_callback(interaction, prompt)
+        async def _command_callback_with_prompt(interaction: discord.Interaction, prompt: str):
+            await _command_callback(interaction, prompt)
 
     return tree
 
