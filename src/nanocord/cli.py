@@ -1370,6 +1370,16 @@ def bot_sync(
         # Build command tree to get the commands
         import discord
         intents = discord.Intents.default()
+        
+        # Login → sync → close sequence in a single event loop
+        discord_token = merged_config.get("discord_token") or os.getenv("DISCORD_BOT_TOKEN")
+        if not discord_token:
+            typer.secho(
+                "Error: No Discord bot token provided. Please set it in config.yaml or "
+                "as the DISCORD_BOT_TOKEN environment variable.",
+                fg=typer.colors.RED
+            )
+            raise typer.Exit(code=1)
 
         # Create a client WITHOUT application_id - we'll login first and let it populate
         client = discord.Client(intents=intents)
@@ -1395,16 +1405,6 @@ def bot_sync(
             finally:
                 # Close the client connection - must be in the same event loop as login
                 await client.close()
-
-        # Login → sync → close sequence in a single event loop
-        discord_token = merged_config.get("discord_token") or os.getenv("DISCORD_BOT_TOKEN")
-        if not discord_token:
-            typer.secho(
-                "Error: No Discord bot token provided. Please set it in config.yaml or "
-                "as the DISCORD_BOT_TOKEN environment variable.",
-                fg=typer.colors.RED
-            )
-            raise typer.Exit(code=1)
 
         try:
             # Run the entire flow in one event loop to avoid cross-loop failures
