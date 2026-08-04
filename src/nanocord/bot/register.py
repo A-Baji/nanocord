@@ -1,5 +1,9 @@
 """
 Bot registration and serving functions.
+
+Note: This module handles the registration of a single Discord bot command that
+uses the persona model, not multiple commands like /oracle or /adib which were
+part of an abandoned from-scratch plan.
 """
 
 import json
@@ -138,7 +142,8 @@ async def sync_if_needed(
 
 def build_command_tree(
     bot_commands_config: List[Dict],
-    config: Dict
+    config: Dict,
+    client: "discord.Client"
 ) -> "discord.app_commands.CommandTree":
     """
     Build a Discord command tree from bot commands configuration.
@@ -146,6 +151,7 @@ def build_command_tree(
     Args:
         bot_commands_config: List of command configurations
         config: Full configuration dictionary
+        client: The discord.Client instance to associate with the command tree
 
     Returns:
         discord.app_commands.CommandTree instance with registered commands
@@ -154,8 +160,8 @@ def build_command_tree(
     bot_config = load_bot_config_section(config)
     presets = bot_config.get("presets", {})
 
-    # Create a new command tree (we'll register commands to it)
-    tree = discord.app_commands.CommandTree(None)  # None as placeholder for client
+    # Create a new command tree with the client directly
+    tree = discord.app_commands.CommandTree(client)
 
     for cmd_config in bot_commands_config:
         # Extract command parameters
@@ -238,10 +244,7 @@ async def run_bot(
     bot = discord.Client(intents=intents)
 
     # Build command tree
-    tree = build_command_tree(commands, config)
-
-    # Set the bot's command tree
-    tree._client = bot
+    tree = build_command_tree(commands, config, bot)
 
     @bot.event
     async def on_ready():

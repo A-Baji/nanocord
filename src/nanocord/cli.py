@@ -196,6 +196,9 @@ bot:
         #   stage: "sft"  # cpt or sft, used only when model_path is omitted
         #   preset: "example_preset"  # a name from bot.presets, or "random"
         #   preset_pool: []  # list of preset names; only used when preset is "random". Empty/omitted = all presets.
+    # Application ID required for nanocord bot sync to work without full login
+    # This can be found on the Discord Developer Portal for your bot
+    application_id: ""  # Set this value to your bot's application ID from Discord Developer Portal
 output_dir: null  # Optional - overrides the base directory for ALL generated output (datasets, model checkpoints, raw Discord exports, Unsloth cache/temp dirs); config.yaml's own location is NOT affected
 """
 
@@ -1309,6 +1312,16 @@ def bot_sync(
         typer.secho("Error: No bot commands registered. Run 'nanocord bot add-command' first.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
+    # Check for application_id in config
+    application_id = merged_config.get("bot", {}).get("application_id")
+    if not application_id:
+        typer.secho(
+            "Error: Missing 'application_id' in config. Please set it in config.yaml under the 'bot' section.\n"
+            "This ID can be found on the Discord Developer Portal for your bot.",
+            fg=typer.colors.RED
+        )
+        raise typer.Exit(code=1)
+
     if dry_run:
         # Use the shared helper function for dry-run check
         should_sync = has_command_set_changed(commands, merged_config, force)
@@ -1319,13 +1332,12 @@ def bot_sync(
         raise typer.Exit(code=0)
     else:
         # Build command tree to get the commands
-        tree = build_command_tree(commands, merged_config)
-
-        # Create a minimal Discord client for syncing (without starting event loop)
         import discord
         intents = discord.Intents.default()
-        client = discord.Client(intents=intents)
-        tree._client = client
+
+        # Create a client with application_id explicitly provided to avoid login requirement
+        client = discord.Client(intents=intents, application_id=application_id)
+        tree = build_command_tree(commands, merged_config, client)
 
         try:
             # Use the shared sync_if_needed function to perform the actual sync
