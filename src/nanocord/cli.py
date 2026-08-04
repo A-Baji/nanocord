@@ -1056,37 +1056,43 @@ def infer_interactive(
     presets = bot_config.get("presets", {})
 
     # Loop for interactive input
-    while True:
-        try:
-            user_input = typer.prompt("You")
-            if user_input.lower() in ("exit", "quit"):
-                break
+    try:
+        while True:
+            try:
+                user_input = typer.prompt("You")
+                if user_input.lower() in ("exit", "quit"):
+                    break
 
-            # Resolve preset (or use default if not provided)
-            if preset is None or preset == "":
-                # Use a default preset if none specified
-                if presets:
-                    preset_name = list(presets.keys())[0]  # Use first preset as default
-                    selected_preset = presets[preset_name]
+                # Resolve preset (or use default if not provided)
+                if preset is None or preset == "":
+                    # Use a default preset if none specified
+                    if presets:
+                        preset_name = list(presets.keys())[0]  # Use first preset as default
+                        selected_preset = presets[preset_name]
+                    else:
+                        selected_preset = {}
                 else:
-                    selected_preset = {}
-            else:
-                try:
-                    selected_preset = resolve_preset(presets, preset)
-                except ValueError as e:
-                    typer.secho(f"Error resolving preset: {e}", fg=typer.colors.RED)
-                    raise typer.Exit(code=1)
+                    try:
+                        selected_preset = resolve_preset(presets, preset)
+                    except ValueError as e:
+                        typer.secho(f"Error resolving preset: {e}", fg=typer.colors.RED)
+                        raise typer.Exit(code=1)
 
-            # Generate response
-            response = generate_response(model, tokenizer, user_input, selected_preset)
-            typer.echo(response)
+                # Generate response
+                response = generate_response(model, tokenizer, user_input, selected_preset)
+                typer.echo(response)
 
-        except KeyboardInterrupt:
-            typer.echo("\nExiting.")
-            raise typer.Exit(code=0)
-        except Exception as e:
-            typer.secho(f"Error during inference: {e}", fg=typer.colors.RED)
-            raise typer.Exit(code=1)
+            except KeyboardInterrupt:
+                typer.echo("\nExiting.")
+                raise typer.Exit(code=0)
+            except Exception as e:
+                typer.secho(f"Error during inference: {type(e).__name__}: {e}", fg=typer.colors.RED)
+                import traceback
+                traceback.print_exc()
+                raise typer.Exit(code=1)
+    except KeyboardInterrupt:
+        typer.echo("\nExiting.")
+        raise typer.Exit(code=0)
 
 
 @infer_app.command("batch")
