@@ -811,6 +811,69 @@ def bot_register(
         raise typer.Exit(code=1)
 
 
+@bot_app.command("add-preset")
+def bot_add_preset(
+    name: Optional[str] = typer.Option(None, "--name", help="Name of the preset"),
+    temperature: Optional[float] = typer.Option(None, "--temperature", help="Temperature for generation"),
+    repetition_penalty: Optional[float] = typer.Option(None, "--repetition-penalty", help="Repetition penalty"),
+    no_repeat_ngram_size: Optional[int] = typer.Option(None, "--no-repeat-ngram-size", help="No repeat ngram size"),
+    max_new_tokens: Optional[int] = typer.Option(None, "--max-new-tokens", help="Maximum new tokens"),
+    config_file: str = typer.Option(str(CONFIG_PATH), "--config", help="Path to YAML configuration file (default: user data directory)"),
+):
+    """
+    Add a new generation parameter preset to the configuration
+    """
+    # Load existing config
+    if not CONFIG_PATH.exists():
+        typer.secho("Error: No configuration file found. Create one first with 'nanocord init'.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    with open(CONFIG_PATH, 'r') as f:
+        config = yaml.safe_load(f) or {}
+
+    # Prompt for name if not provided
+    if name is None:
+        name = typer.prompt("Enter preset name")
+        if not name:
+            typer.secho("Error: Preset name cannot be empty", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+
+    # Prompt for other parameters if not provided
+    if temperature is None:
+        temperature = typer.prompt("Enter temperature (default 0.5)", default=0.5, type=float)
+
+    if repetition_penalty is None:
+        repetition_penalty = typer.prompt("Enter repetition penalty (default 1.18)", default=1.18, type=float)
+
+    if no_repeat_ngram_size is None:
+        no_repeat_ngram_size = typer.prompt("Enter no repeat ngram size (default 3)", default=3, type=int)
+
+    if max_new_tokens is None:
+        max_new_tokens = typer.prompt("Enter maximum new tokens (default 256)", default=256, type=int)
+
+    # Check if preset already exists
+    bot_section = config.setdefault("bot", {})
+    presets = bot_section.setdefault("presets", {})
+
+    if name in presets:
+        typer.secho(f"Error: preset '{name}' already exists. Choose a different name or edit config.yaml directly.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    # Add the new preset
+    presets[name] = {
+        "temperature": temperature,
+        "repetition_penalty": repetition_penalty,
+        "no_repeat_ngram_size": no_repeat_ngram_size,
+        "max_new_tokens": max_new_tokens
+    }
+
+    # Write back to file
+    with open(CONFIG_PATH, 'w') as f:
+        yaml.dump(config, f, default_flow_style=False, indent=2, allow_unicode=True)
+
+    typer.echo(f"Added preset '{name}' to configuration")
+
+
 @infer_app.command("interactive")
 def infer_interactive(
     model_path: Optional[str] = typer.Option(
