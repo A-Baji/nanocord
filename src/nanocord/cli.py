@@ -1405,7 +1405,7 @@ def config_set_cmd(
         raise typer.Exit(code=1)
 
     with open(CONFIG_PATH, 'r') as f:
-        config = yaml.safe_load(f) or {}
+        config = _yaml_rt.load(f) or {}
 
     # Parse the key path (supporting dot notation)
     keys = key.split('.')
