@@ -7,7 +7,7 @@ and the bot registration code without any CLI/typer dependencies.
 """
 
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Tuple
 import random
 
 # Import from our own modules
@@ -129,17 +129,15 @@ def load_bot_config_section(config_file: Optional[str]) -> Dict:
     return raw_config.get("bot", {})
 
 
-def generate_response(model_path: Path, prompt: str, preset: Dict) -> str:
+def load_model(model_path: Path) -> Tuple[any, any]:
     """
-    Generate a response using the model at the given path with the specified preset.
+    Load a model and tokenizer from the given path.
 
     Args:
         model_path: Path to the model checkpoint
-        prompt: Input prompt for generation
-        preset: Dictionary containing generation parameters
 
     Returns:
-        Generated response text
+        Tuple of (model, tokenizer)
     """
     # Import torch and other libraries inside the function to avoid module-level dependencies
     import torch
@@ -154,6 +152,25 @@ def generate_response(model_path: Path, prompt: str, preset: Dict) -> str:
         device_map="cuda:0",
         load_in_4bit=True,
     )
+
+    return model, tokenizer
+
+
+def generate_response(model, tokenizer, prompt: str, preset: Dict) -> str:
+    """
+    Generate a response using the provided model and tokenizer with the specified preset.
+
+    Args:
+        model: Loaded model object
+        tokenizer: Loaded tokenizer object
+        prompt: Input prompt for generation
+        preset: Dictionary containing generation parameters
+
+    Returns:
+        Generated response text
+    """
+    # Import torch inside the function to avoid module-level dependencies
+    import torch
 
     # Prepare input
     inputs = tokenizer(prompt, return_tensors="pt").to("cuda:0")

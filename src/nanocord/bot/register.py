@@ -10,7 +10,7 @@ import json
 import hashlib
 import os
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import discord
 
 from nanocord.paths import resolve_output_dir
@@ -18,6 +18,7 @@ from nanocord.infer import (
     resolve_checkpoint_path,
     resolve_preset,
     load_bot_config_section,
+    load_model,
     generate_response
 )
 from nanocord import global_logger
@@ -163,6 +164,11 @@ def build_command_tree(
     # Create a new command tree with the client directly
     tree = discord.app_commands.CommandTree(client)
 
+    # Cache for loaded models to avoid reloading the same model multiple times
+    # This is important because we may have multiple commands pointing to the same checkpoint
+    # and we don't want to load the same model multiple times
+    model_cache: Dict[str, Tuple[any, any]] = {}
+
     def _make_command_callback(cmd_config: Dict, presets: Dict):
         """
         Factory function to create command callback functions with proper type annotations.
@@ -183,12 +189,22 @@ def build_command_tree(
                     cmd_config.get("stage")
                 )
 
+                # Convert to string for use as cache key
+                model_path_str = str(model_path)
+
+                # Load model if not already cached
+                if model_path_str not in model_cache:
+                    model, tokenizer = load_model(model_path)
+                    model_cache[model_path_str] = (model, tokenizer)
+                else:
+                    model, tokenizer = model_cache[model_path_str]
+
                 # Resolve preset
                 preset_name = cmd_config.get("preset", "default")
                 selected_preset = resolve_preset(presets, preset_name, cmd_config.get("preset_pool"))
 
                 # Generate response
-                response = generate_response(model_path, prompt, selected_preset)
+                response = generate_response(model, tokenizer, prompt, selected_preset)
 
                 # Truncate to Discord's 2000-character limit
                 if len(response) > 2000:

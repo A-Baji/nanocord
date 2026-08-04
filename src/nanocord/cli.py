@@ -1045,6 +1045,13 @@ def infer_interactive(
         typer.secho(f"Error resolving checkpoint: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
+    # Load model once before the input loop
+    try:
+        model, tokenizer = load_model(checkpoint_path)
+    except Exception as e:
+        typer.secho(f"Error loading model: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
     # Get available presets
     presets = bot_config.get("presets", {})
 
@@ -1071,7 +1078,7 @@ def infer_interactive(
                     raise typer.Exit(code=1)
 
             # Generate response
-            response = generate_response(checkpoint_path, user_input, selected_preset)
+            response = generate_response(model, tokenizer, user_input, selected_preset)
             typer.echo(response)
 
         except KeyboardInterrupt:
@@ -1147,6 +1154,13 @@ def infer_batch(
         typer.secho(f"Error resolving checkpoint: {e}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
+    # Load model once before the trials loop
+    try:
+        model, tokenizer = load_model(checkpoint_path)
+    except Exception as e:
+        typer.secho(f"Error loading model: {e}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
     # Get available presets
     presets = bot_config.get("presets", {})
 
@@ -1177,7 +1191,7 @@ def infer_batch(
                     trial_preset = {}
 
             # Generate response
-            response = generate_response(checkpoint_path, prompt, trial_preset)
+            response = generate_response(model, tokenizer, prompt, trial_preset)
             typer.echo(f"[{i+1}/{trials}] {response}")
 
         except Exception as e:
