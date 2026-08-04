@@ -183,6 +183,9 @@ def build_command_tree(
             Async callback function for the Discord command
         """
         async def callback(interaction: discord.Interaction, prompt: str):
+            # First defer the interaction to extend response window from 3 seconds to ~15 minutes
+            await interaction.response.defer()
+
             try:
                 # Resolve checkpoint path
                 model_path = resolve_checkpoint_path(
@@ -212,15 +215,15 @@ def build_command_tree(
                 if len(response) > 2000:
                     response = response[:1997] + "..."
 
-                # Send the response
-                await interaction.response.send_message(response)
+                # Send the response using followup.send instead of send_message after deferring
+                await interaction.followup.send(response)
             except Exception as e:
                 # Log the full exception
                 global_logger.exception("Error in bot command execution")
 
-                # Send a user-friendly error message
+                # Send a user-friendly error message using followup.send
                 error_msg = "Sorry, I encountered an error processing your request. Please try again."
-                await interaction.response.send_message(error_msg)
+                await interaction.followup.send(error_msg)
 
         return callback
 
