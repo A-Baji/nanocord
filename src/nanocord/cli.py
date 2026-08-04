@@ -794,6 +794,8 @@ def bot_register(
         "--config",
         help="Path to YAML configuration file (default: user data directory)"
     ),
+    force_sync: bool = typer.Option(False, "--force-sync", help="Force re-syncing of commands even if unchanged"),
+    guild_id: Optional[int] = typer.Option(None, "--guild-id", help="Guild ID for guild-specific command registration"),
 ):
     """
     Register the Discord bot and serve the fine-tuned model
@@ -803,8 +805,12 @@ def bot_register(
     merged_config = load_and_merge_config(config_file, {}, "bot")
 
     try:
-        # Call the register_bot function
-        register_bot(merged_config)
+        # Import here to avoid circular imports at module level
+        from nanocord.bot.register import run_bot
+
+        # Call the run_bot function
+        import asyncio
+        asyncio.run(run_bot(merged_config, force_sync, guild_id))
         typer.echo("Bot registration completed successfully")
     except NotImplementedError:
         typer.secho("Error: Bot registration not yet implemented", fg=typer.colors.RED)
