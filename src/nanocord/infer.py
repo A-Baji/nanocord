@@ -146,6 +146,15 @@ def resolve_eos_ids(tokenizer) -> List[int]:
     if hasattr(tokenizer, "eos_token_id") and tokenizer.eos_token_id is not None:
         eos_ids.append(tokenizer.eos_token_id)
 
+    # Add ChatML stop tokens
+    chatml_stop_tokens = ["</s>", "<!--", "<tool_call>"]
+    unk_token_id = getattr(tokenizer, "unk_token_id", None)
+
+    for token in chatml_stop_tokens:
+        token_id = tokenizer.convert_tokens_to_ids(token)
+        if token_id != unk_token_id and token_id != -1:
+            eos_ids.append(token_id)
+
     return eos_ids
 
 
