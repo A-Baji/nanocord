@@ -132,7 +132,7 @@ def load_bot_config_section(config_file: Optional[str]) -> Dict:
 
 def resolve_eos_ids(tokenizer) -> List[int]:
     """
-    Resolve EOS token IDs including special tokens like '(', ')', '（', '）'.
+    Resolve EOS token IDs including the standard EOS token.
 
     Args:
         tokenizer: The tokenizer object
@@ -140,26 +140,16 @@ def resolve_eos_ids(tokenizer) -> List[int]:
     Returns:
         List of token IDs that should be treated as EOS tokens
     """
-    import torch
-    from transformers import AutoTokenizer
-
     eos_ids = []
 
     # Add the standard EOS token ID
     if hasattr(tokenizer, "eos_token_id") and tokenizer.eos_token_id is not None:
         eos_ids.append(tokenizer.eos_token_id)
 
-    # Add IDs for parentheses tokens
-    special_tokens = ["(", ")", "（", "）"]
-    for token in special_tokens:
-        token_id = tokenizer.convert_tokens_to_ids(token)
-        if token_id != tokenizer.unk_token_id and token_id != -1:
-            eos_ids.append(token_id)
-
     return eos_ids
 
 
-def truncate_at_eos(token_ids, eos_ids) -> torch.Tensor:
+def truncate_at_eos(token_ids, eos_ids):
     """
     Truncate token IDs at the first occurrence of any EOS ID.
 
@@ -247,6 +237,65 @@ def generate_response(model, tokenizer, prompt: str, preset: Dict, system_prompt
     # Import torch inside the function to avoid module-level dependencies
     import torch
 
+    # Prepare shared generation parameters with eos_token_id
+    gen_kwargs = {
+        "temperature": preset.get("temperature", 0.7),
+        "repetition_penalty": preset.get("repetition_penalty", 1.0),
+        "no_repeat_ngram_size": preset.get("no_repeat_ngram_size", 2),
+        "max_new_tokens": preset.get("max_new_tokens", 512),
+        "eos_token_id": tokenizer.eos_token_id,
+    }
+
+    # Add sampling parameters if present in preset
+    if "top_p" in preset:
+        gen_kwargs["top_p"] = preset["top_p"]
+    if "top_k" in preset:
+        gen_kwargs["top_k"] = preset["top_k"]
+    if "min_p" in preset:
+        gen_kwargs["min_p"] = preset["min_p"]
+
+    # Add banned tokens if requested
+    if preset.get("ban_parens"):
+        # Get banned token IDs for parentheses
+        banned_ids = []
+        special_tokens = ["(", ")", "（", "）"]
+        for token in special_tokens:
+            token_id = tokenizer.convert_tokens_to_ids(token)
+            if token_id != tokenizer.unk_token_id and token_id != -1:
+                banned_ids.append(token_id)
+
+        if banned_ids:
+            gen_kwargs["bad_words_ids"] = [banned_ids]
+
+    # Add lowercase first token processor if requested
+    if preset.get("lowercase_first_token"):
+        from transformers import LogitsProcessor, LogitsProcessorList
+
+        class LowercaseFirstTokenLogitsProcessor(LogitsProcessor):
+            def __init__(self, tokenizer, prompt_length):
+                self.prompt_length = prompt_length
+
+                # Build capital_ids by iterating through the tokenizer's vocabulary
+                self.capital_ids = []
+                for token_str, token_id in tokenizer.get_vocab().items():
+                    # Strip BPE space markers (Ġ, leading space) from token string
+                    clean_str = token_str.lstrip('Ġ ')
+                    # Check if the first character is an uppercase ASCII letter
+                    if len(clean_str) > 0 and clean_str[0].isupper() and clean_str[0].isascii():
+                        self.capital_ids.append(token_id)
+                # Convert to tensor for efficient device transfer
+                self.capital_ids = torch.tensor(self.capital_ids, dtype=torch.long)
+
+            def __call__(self, input_ids, scores):
+                if input_ids.shape[-1] == self.prompt_length:
+                    # Set scores for capital IDs to negative infinity
+                    scores[:, self.capital_ids.to(scores.device)] = -float("inf")
+                return scores
+
+        # Create logits processor list and add our custom processor
+        logits_processor = LogitsProcessorList([])
+        gen_kwargs["logits_processor"] = logits_processor
+
     # Check if the tokenizer has a chat template
     if getattr(tokenizer, "chat_template", None) is not None:
         # Use chat template approach
@@ -262,56 +311,9 @@ def generate_response(model, tokenizer, prompt: str, preset: Dict, system_prompt
             return_tensors="pt"
         ).to("cuda:0")
 
-        # Prepare generation parameters with eos_token_id
-        gen_kwargs = {
-            "temperature": preset.get("temperature", 0.7),
-            "repetition_penalty": preset.get("repetition_penalty", 1.0),
-            "no_repeat_ngram_size": preset.get("no_repeat_ngram_size", 2),
-            "max_new_tokens": preset.get("max_new_tokens", 512),
-            "eos_token_id": tokenizer.eos_token_id,
-        }
-
-        # Add sampling parameters if present in preset
-        if "top_p" in preset:
-            gen_kwargs["top_p"] = preset["top_p"]
-        if "top_k" in preset:
-            gen_kwargs["top_k"] = preset["top_k"]
-        if "min_p" in preset:
-            gen_kwargs["min_p"] = preset["min_p"]
-
-        # Add banned tokens if requested
-        if preset.get("ban_parens"):
-            # Get banned token IDs for parentheses
-            banned_ids = []
-            special_tokens = ["(", ")", "（", "）"]
-            for token in special_tokens:
-                token_id = tokenizer.convert_tokens_to_ids(token)
-                if token_id != tokenizer.unk_token_id and token_id != -1:
-                    banned_ids.append(token_id)
-
-            if banned_ids:
-                gen_kwargs["bad_words_ids"] = [banned_ids]
-
-        # Add lowercase first token processor if requested
+        # Set the prompt_length for the lowercase first token processor
         if preset.get("lowercase_first_token"):
-            from transformers import LogitsProcessor, LogitsProcessorList
-
-            class LowercaseFirstTokenLogitsProcessor(LogitsProcessor):
-                def __init__(self, tokenizer, prompt_length):
-                    self.tokenizer = tokenizer
-                    self.prompt_length = prompt_length
-
-                def __call__(self, input_ids, scores):
-                    if input_ids.shape[-1] == self.prompt_length:
-                        # This is a placeholder implementation for the LowercaseFirstTokenLogitsProcessor
-                        # A real implementation would modify scores to encourage lowercase first token
-                        pass  # Placeholder - actual implementation would be more complex
-                    return scores
-
-            # Create logits processor list and add our custom processor
-            logits_processor = LogitsProcessorList([])
             logits_processor.append(LowercaseFirstTokenLogitsProcessor(tokenizer, inputs.shape[-1]))
-            gen_kwargs["logits_processor"] = logits_processor
 
         # Generate response
         with torch.no_grad():
@@ -333,56 +335,9 @@ def generate_response(model, tokenizer, prompt: str, preset: Dict, system_prompt
         # Fall back to raw completion behavior for compatibility
         inputs = tokenizer(prompt, return_tensors="pt").to("cuda:0")
 
-        # Apply preset parameters with defaults
-        gen_kwargs = {
-            "temperature": preset.get("temperature", 0.7),
-            "repetition_penalty": preset.get("repetition_penalty", 1.0),
-            "no_repeat_ngram_size": preset.get("no_repeat_ngram_size", 2),
-            "max_new_tokens": preset.get("max_new_tokens", 512),
-            "eos_token_id": tokenizer.eos_token_id,
-        }
-
-        # Add sampling parameters if present in preset
-        if "top_p" in preset:
-            gen_kwargs["top_p"] = preset["top_p"]
-        if "top_k" in preset:
-            gen_kwargs["top_k"] = preset["top_k"]
-        if "min_p" in preset:
-            gen_kwargs["min_p"] = preset["min_p"]
-
-        # Add banned tokens if requested
-        if preset.get("ban_parens"):
-            # Get banned token IDs for parentheses
-            banned_ids = []
-            special_tokens = ["(", ")", "（", "）"]
-            for token in special_tokens:
-                token_id = tokenizer.convert_tokens_to_ids(token)
-                if token_id != tokenizer.unk_token_id and token_id != -1:
-                    banned_ids.append(token_id)
-
-            if banned_ids:
-                gen_kwargs["bad_words_ids"] = [banned_ids]
-
-        # Add lowercase first token processor if requested
+        # Set the prompt_length for the lowercase first token processor
         if preset.get("lowercase_first_token"):
-            from transformers import LogitsProcessor, LogitsProcessorList
-
-            class LowercaseFirstTokenLogitsProcessor(LogitsProcessor):
-                def __init__(self, tokenizer, prompt_length):
-                    self.tokenizer = tokenizer
-                    self.prompt_length = prompt_length
-
-                def __call__(self, input_ids, scores):
-                    if input_ids.shape[-1] == self.prompt_length:
-                        # This is a placeholder implementation for the LowercaseFirstTokenLogitsProcessor
-                        # A real implementation would modify scores to encourage lowercase first token
-                        pass  # Placeholder - actual implementation would be more complex
-                    return scores
-
-            # Create logits processor list and add our custom processor
-            logits_processor = LogitsProcessorList([])
             logits_processor.append(LowercaseFirstTokenLogitsProcessor(tokenizer, inputs.shape[-1]))
-            gen_kwargs["logits_processor"] = logits_processor
 
         # Generate response
         with torch.no_grad():
