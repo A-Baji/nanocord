@@ -193,6 +193,11 @@ bot:
         #   repetition_penalty: 1.18
         #   no_repeat_ngram_size: 3
         #   max_new_tokens: 256
+        #   top_p: 0.9
+        #   top_k: 40
+        #   min_p: 0.05
+        #   ban_parens: false
+        #   lowercase_first_token: false
     # Registered Discord slash commands. Each entry's model_path may be omitted to
     # auto-resolve to {{output_dir}}/models/{{user_id}}_{{channel_id}}_{{stage}}_lora.
     commands:
