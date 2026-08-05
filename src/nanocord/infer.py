@@ -253,6 +253,7 @@ def generate_response(model, tokenizer, prompt: str, preset: Dict, system_prompt
         "no_repeat_ngram_size": preset.get("no_repeat_ngram_size", 2),
         "max_new_tokens": preset.get("max_new_tokens", 512),
         "eos_token_id": tokenizer.eos_token_id,
+        "do_sample": True,
     }
 
     # Add sampling parameters if present in preset

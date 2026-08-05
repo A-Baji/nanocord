@@ -1508,6 +1508,13 @@ def config_set_cmd(
         # If parsing fails, treat as string
         parsed_value = value
 
+    # Force string conversion for known snowflake-ID keys
+    # Check if the final key is channel_id or user_id (either at top level or nested)
+    final_key = keys[-1]
+    if final_key in ('channel_id', 'user_id'):
+        # Convert to string to ensure Discord IDs are stored as strings
+        parsed_value = str(parsed_value)
+
     current[keys[-1]] = parsed_value
 
     # Write back to file using ruamel.yaml for round-trip preservation
