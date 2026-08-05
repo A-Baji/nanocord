@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Tuple
 import discord
 
 from nanocord.paths import resolve_output_dir
+from nanocord.config import load_and_merge_config
 from nanocord.infer import (
     resolve_checkpoint_path,
     resolve_preset,
@@ -208,8 +209,20 @@ def build_command_tree(
                 preset_name = cmd_config.get("preset", "default")
                 selected_preset = resolve_preset(presets, preset_name, cmd_config.get("preset_pool"))
 
+                # Prepare system prompt for SFT models
+                system_prompt = None
+                if cmd_config.get("stage") == "sft":
+                    from nanocord.dataset.sft import resolve_system_prompt
+                    try:
+                        sft_config = load_and_merge_config(config_file, {}, "dataset.sft")
+                        persona_name = sft_config.get("persona_name")
+                        system_prompt_template = sft_config.get("system_prompt")
+                        system_prompt = resolve_system_prompt(persona_name, system_prompt_template)
+                    except Exception as e:
+                        global_logger.warning(f"Could not resolve system prompt for SFT model: {e}")
+
                 # Generate response
-                response = generate_response(model, tokenizer, prompt, selected_preset)
+                response = generate_response(model, tokenizer, prompt, selected_preset, system_prompt)
 
                 # Truncate to Discord's 2000-character limit
                 if len(response) > 2000:

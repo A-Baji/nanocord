@@ -156,7 +156,7 @@ def load_model(model_path: Path) -> Tuple[any, any]:
     return model, tokenizer
 
 
-def generate_response(model, tokenizer, prompt: str, preset: Dict) -> str:
+def generate_response(model, tokenizer, prompt: str, preset: Dict, system_prompt: Optional[str] = None) -> str:
     """
     Generate a response using the provided model and tokenizer with the specified preset.
 
@@ -165,6 +165,7 @@ def generate_response(model, tokenizer, prompt: str, preset: Dict) -> str:
         tokenizer: Loaded tokenizer object
         prompt: Input prompt for generation
         preset: Dictionary containing generation parameters
+        system_prompt: Optional system prompt to prepend to the conversation
 
     Returns:
         Generated response text
@@ -172,26 +173,63 @@ def generate_response(model, tokenizer, prompt: str, preset: Dict) -> str:
     # Import torch inside the function to avoid module-level dependencies
     import torch
 
-    # Prepare input
-    inputs = tokenizer(prompt, return_tensors="pt").to("cuda:0")
+    # Check if the tokenizer has a chat template
+    if getattr(tokenizer, "chat_template", None) is not None:
+        # Use chat template approach
+        messages = [{"role": "user", "content": prompt}]
+        if system_prompt is not None:
+            messages.insert(0, {"role": "system", "content": system_prompt})
 
-    # Apply preset parameters with defaults
-    gen_kwargs = {
-        "temperature": preset.get("temperature", 0.7),
-        "repetition_penalty": preset.get("repetition_penalty", 1.0),
-        "no_repeat_ngram_size": preset.get("no_repeat_ngram_size", 2),
-        "max_new_tokens": preset.get("max_new_tokens", 512),
-    }
+        # Apply chat template to get input tensors
+        inputs = tokenizer.apply_chat_template(
+            messages,
+            tokenize=True,
+            add_generation_prompt=True,
+            return_tensors="pt"
+        ).to("cuda:0")
 
-    # Generate response
-    with torch.no_grad():
-        outputs = model.generate(
-            **inputs,
-            **gen_kwargs,
-        )
+        # Prepare generation parameters with eos_token_id
+        gen_kwargs = {
+            "temperature": preset.get("temperature", 0.7),
+            "repetition_penalty": preset.get("repetition_penalty", 1.0),
+            "no_repeat_ngram_size": preset.get("no_repeat_ngram_size", 2),
+            "max_new_tokens": preset.get("max_new_tokens", 512),
+            "eos_token_id": tokenizer.eos_token_id,
+        }
 
-    # Decode and return the generated text
-    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        # Generate response
+        with torch.no_grad():
+            outputs = model.generate(
+                input_ids=inputs,
+                attention_mask=torch.ones_like(inputs),
+                **gen_kwargs,
+            )
+
+        # Decode only the newly generated tokens (not the prompt/chat template)
+        generated_tokens = outputs[0][inputs.shape[-1]:]
+        response = tokenizer.decode(generated_tokens, skip_special_tokens=True)
+    else:
+        # Fall back to raw completion behavior for compatibility
+        inputs = tokenizer(prompt, return_tensors="pt").to("cuda:0")
+
+        # Apply preset parameters with defaults
+        gen_kwargs = {
+            "temperature": preset.get("temperature", 0.7),
+            "repetition_penalty": preset.get("repetition_penalty", 1.0),
+            "no_repeat_ngram_size": preset.get("no_repeat_ngram_size", 2),
+            "max_new_tokens": preset.get("max_new_tokens", 512),
+            "eos_token_id": tokenizer.eos_token_id,
+        }
+
+        # Generate response
+        with torch.no_grad():
+            outputs = model.generate(
+                **inputs,
+                **gen_kwargs,
+            )
+
+        # Decode and return the generated text
+        response = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
     # TODO: sanitize_response - see infer.py fix status in project notes comment instead,
     # since that regex fix hasn't been finalized yet.

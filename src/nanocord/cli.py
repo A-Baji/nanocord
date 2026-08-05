@@ -1052,6 +1052,18 @@ def infer_interactive(
     # Get available presets
     presets = bot_config.get("presets", {})
 
+    # Prepare system prompt for SFT models
+    system_prompt = None
+    if stage == "sft":
+        from nanocord.dataset.sft import resolve_system_prompt
+        try:
+            sft_config = load_and_merge_config(config_file, {}, "dataset.sft")
+            persona_name = sft_config.get("persona_name")
+            system_prompt_template = sft_config.get("system_prompt")
+            system_prompt = resolve_system_prompt(persona_name, system_prompt_template)
+        except Exception as e:
+            typer.secho(f"Warning: Could not resolve system prompt for SFT model: {e}", fg=typer.colors.YELLOW)
+
     # Loop for interactive input
     try:
         while True:
@@ -1076,7 +1088,7 @@ def infer_interactive(
                         raise typer.Exit(code=1)
 
                 # Generate response
-                response = generate_response(model, tokenizer, user_input, selected_preset)
+                response = generate_response(model, tokenizer, user_input, selected_preset, system_prompt)
                 typer.echo(response)
 
             except (KeyboardInterrupt, typer.Abort):
@@ -1167,6 +1179,18 @@ def infer_batch(
     # Get available presets
     presets = bot_config.get("presets", {})
 
+    # Prepare system prompt for SFT models
+    system_prompt = None
+    if stage == "sft":
+        from nanocord.dataset.sft import resolve_system_prompt
+        try:
+            sft_config = load_and_merge_config(config_file, {}, "dataset.sft")
+            persona_name = sft_config.get("persona_name")
+            system_prompt_template = sft_config.get("system_prompt")
+            system_prompt = resolve_system_prompt(persona_name, system_prompt_template)
+        except Exception as e:
+            typer.secho(f"Warning: Could not resolve system prompt for SFT model: {e}", fg=typer.colors.YELLOW)
+
     # Resolve preset once (if it's random, we'll resolve it each trial)
     if preset is not None and preset != "":
         try:
@@ -1194,7 +1218,7 @@ def infer_batch(
                     trial_preset = {}
 
             # Generate response
-            response = generate_response(model, tokenizer, prompt, trial_preset)
+            response = generate_response(model, tokenizer, prompt, trial_preset, system_prompt)
             typer.echo(f"[{i+1}/{trials}] {response}")
 
         except Exception as e:
