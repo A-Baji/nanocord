@@ -147,7 +147,7 @@ def resolve_eos_ids(tokenizer) -> List[int]:
         eos_ids.append(tokenizer.eos_token_id)
 
     # Add ChatML stop tokens
-    chatml_stop_tokens = ["</s>", "<!--", "<tool_call>"]
+    chatml_stop_tokens = ["<tool_call>", "<tool_call>", "<tool_call>"]
     unk_token_id = getattr(tokenizer, "unk_token_id", None)
 
     for token in chatml_stop_tokens:
